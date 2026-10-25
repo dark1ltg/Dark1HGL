@@ -29,6 +29,8 @@ export default React.memo(function CurrentDownload({
     progress,
     downloadState === 'running'
   )
+  const reading =
+    (progress.readSpeed ?? 0) >= 1 && (progress.diskSpeed ?? 0) < 1
   const [gameTitle, setGameTitle] = useState('')
   const { libraryStatus } = useContext(ContextProvider)
   const { t } = useTranslation()
@@ -79,7 +81,13 @@ export default React.memo(function CurrentDownload({
         <span className="gameTitle">{gameTitle ?? 'GameName'}</span>
         <br />
         <span className="downloadStatus">
-          {progress.totalBytes ? progress.bytes : getStatus()}
+          {reading
+            ? t('download-manager.readingSpeed', 'Reading {{speed}} MB/s', {
+                speed: Math.round(progress.readSpeed ?? 0)
+              })
+            : progress.totalBytes
+              ? progress.bytes
+              : getStatus()}
         </span>
         <br />
         <Box sx={{ display: 'flex', alignItems: 'center' }}>

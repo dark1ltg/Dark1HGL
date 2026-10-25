@@ -26,6 +26,8 @@ export default function ProgressHeader(props: {
   const [progress] = hasProgress(props.appName, props.runner)
   const writingToDisk = useProgressIsStale(progress, props.state === 'running')
   const writing = (progress.totalBytes ?? 0) > 0
+  const reading =
+    (progress.readSpeed ?? 0) >= 1 && (progress.diskSpeed ?? 0) < 1
   const [avgSpeed, setAvgDownloadSpeed] = useState<Point[]>(
     Array<Point>(sampleSize).fill({ download: 0, disk: 0 })
   )
@@ -42,12 +44,14 @@ export default function ProgressHeader(props: {
       avgSpeed.shift()
     }
 
+    const readRate = progress.readSpeed ?? 0
+    const writeRate = progress.diskSpeed ?? 0
     avgSpeed.push({
       download:
         progress.downSpeed && progress.downSpeed > 0
           ? progress.downSpeed
           : (avgSpeed.at(-1)?.download ?? 0),
-      disk: progress.diskSpeed ?? 0
+      disk: readRate >= 1 && writeRate < 1 ? readRate : writeRate
     })
 
     setAvgDownloadSpeed([...avgSpeed])
@@ -102,7 +106,9 @@ export default function ProgressHeader(props: {
               {roundToNearestHundredth(avgSpeed.at(-1)?.disk)} MB/s
             </h5>
             <div className="realtimeDownloadStatLabel diskLabel">
-              {t('download-manager.label.disk', 'Disk')}{' '}
+              {reading
+                ? t('download-manager.label.read', 'Read')
+                : t('download-manager.label.disk', 'Disk')}{' '}
             </div>
           </div>
         </div>
@@ -128,23 +134,34 @@ export default function ProgressHeader(props: {
                 value={progress.percent || 0}
               />
             </Box>
-            <Box sx={{ minWidth: writingToDisk ? 148 : 35 }}>
+            <Box sx={{ minWidth: reading || writingToDisk ? 168 : 35 }}>
               <Typography
                 variant="subtitle1"
                 sx={{ whiteSpace: 'nowrap' }}
                 title={
-                  writingToDisk
+                  reading
                     ? t(
-                        'download-manager.writingHint',
-                        'Still writing files to disk. That time was only an estimate for the download.'
+                        'download-manager.readingHint',
+                        'Reading the installed game from disk. The percent moves when that file is written.'
                       )
-                    : t('download-manager.ETA', 'Estimated Time')
+                    : writingToDisk
+                      ? t(
+                          'download-manager.writingHint',
+                          'Still writing files to disk. That time was only an estimate for the download.'
+                        )
+                      : t('download-manager.ETA', 'Estimated Time')
                 }
               >
                 {props.state === 'running'
-                  ? writingToDisk
-                    ? t('download-manager.writing', 'Writing to disk')
-                    : (progress.eta ?? '00:00:00')
+                  ? reading
+                    ? t(
+                        'download-manager.readingSpeed',
+                        'Reading {{speed}} MB/s',
+                        { speed: Math.round(progress.readSpeed ?? 0) }
+                      )
+                    : writingToDisk
+                      ? t('download-manager.writing', 'Writing to disk')
+                      : (progress.eta ?? '00:00:00')
                   : 'Paused'}
               </Typography>
             </Box>

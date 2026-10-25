@@ -2,13 +2,19 @@ import { GogWriteProgress } from '../write_progress'
 
 const MiB = 1024 * 1024
 
-function harness(writes: Map<number, number>) {
+function harness(
+  writes: Map<number, number>,
+  reads = new Map<number, number>()
+) {
   let now = 0
   let pids = [10]
   const progress = new GogWriteProgress({
     now: () => now,
     pids: () => pids,
-    writeBytes: (pid) => writes.get(pid)
+    bytes: (pid) => {
+      if (!writes.has(pid) && !reads.has(pid)) return
+      return { read: reads.get(pid) ?? 0, write: writes.get(pid) ?? 0 }
+    }
   })
   progress.setPid(10)
   return {
@@ -106,6 +112,23 @@ describe('GogWriteProgress', () => {
     writes.set(11, 50 * MiB + 4 * MiB)
     at(3000)
     expect(progress.sample()?.writtenBytes).toBe(1000 + 4 * MiB)
+  })
+
+  test('shows disk reads while the written percent stays put', () => {
+    const total = 10 * MiB
+    const writes = new Map([[10, 100]])
+    const reads = new Map([[10, 0]])
+    const { progress, at } = harness(writes, reads)
+    progress.ingest(`Progress: 90.00 ${9 * MiB}/${total}, ETA: 00:01:54`)
+
+    at(2000)
+    reads.set(10, 20 * MiB)
+    const update = progress.sample()
+
+    expect(update?.writtenBytes).toBe(9 * MiB)
+    expect(update?.percent).toBe(90)
+    expect(update?.readSpeed).toBeCloseTo(10, 0)
+    expect(update?.diskSpeed).toBe(0)
   })
 
   test('stops at the total size', () => {

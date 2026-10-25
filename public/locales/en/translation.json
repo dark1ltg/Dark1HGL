@@ -424,6 +424,7 @@
         },
         "label": {
             "disk": "Disk",
+            "read": "Read",
             "speed": "Download"
         },
         "link": "Downloads",
@@ -433,6 +434,8 @@
             "start-time": "Started at",
             "type": "Type"
         },
+        "readingHint": "Reading the installed game from disk. The percent moves when that file is written.",
+        "readingSpeed": "Reading {{speed}} MB/s",
         "title": "Downloads",
         "writing": "Writing to disk",
         "writingHint": "Still writing files to disk. That time was only an estimate for the download.",

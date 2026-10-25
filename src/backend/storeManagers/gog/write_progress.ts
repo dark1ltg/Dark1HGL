@@ -4,7 +4,7 @@ import type { InstallProgress } from 'common/types'
 
 const MiB = 1024 * 1024
 
-export function formatByteSize(bytes: number): string {
+function formatByteSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   let value = bytes
@@ -27,13 +27,18 @@ function formatEta(seconds: number): string {
     .join(':')
 }
 
-function readWriteBytes(pid: number): number | undefined {
+type ProcessIo = { read: number; write: number }
+
+function readProcessIo(pid: number): ProcessIo | undefined {
   try {
     const text = readFileSync(`/proc/${pid}/io`, 'utf8')
-    const match = text.match(/^write_bytes:\s+(\d+)/m)
-    if (!match?.[1]) return
-    const value = Number(match[1])
-    return Number.isFinite(value) ? value : undefined
+    const read = text.match(/^read_bytes:\s+(\d+)/m)
+    const write = text.match(/^write_bytes:\s+(\d+)/m)
+    if (!read?.[1] && !write?.[1]) return
+    return {
+      read: read?.[1] ? Number(read[1]) : 0,
+      write: write?.[1] ? Number(write[1]) : 0
+    }
   } catch {
     return
   }
@@ -79,22 +84,23 @@ function listProcessTree(root: number): number[] {
   return ordered
 }
 
-export type WriteProgressIO = {
+type WriteProgressIO = {
   now?: () => number
   pids?: (root: number) => number[]
-  writeBytes?: (pid: number) => number | undefined
+  bytes?: (pid: number) => ProcessIo | undefined
 }
 
 /**
  * GOG's reported percent is bytes written, but a patch only publishes that
- * number when an xdelta window finishes. The writer process is a child of
- * gogdl and its /proc write_bytes keeps climbing during the window, so the
- * bar can follow the disk instead of sitting on the last finished file.
+ * number when an xdelta window finishes. On an external drive most of that
+ * wait is reading the existing game, which keeps the activity light on while
+ * the written percent stays still. Read and write bytes from the gogdl
+ * process tree keep the UI moving through that gap.
  */
 export class GogWriteProgress {
   private readonly now: () => number
   private readonly pids: (root: number) => number[]
-  private readonly writeBytes: (pid: number) => number | undefined
+  private readonly bytes: (pid: number) => ProcessIo | undefined
 
   private pid: number | undefined
   private reportedWritten = 0
@@ -105,14 +111,17 @@ export class GogWriteProgress {
   private loggedDiskSpeed = 0
   private loggedDownSpeed = 0
   private lastDisplayed = -1
-  private baseline = new Map<number, number>()
+  private lastSampleAt = 0
+  private lastReadExtra = 0
+  private lastWriteExtra = 0
+  private baseline = new Map<number, ProcessIo>()
   private timer: NodeJS.Timeout | undefined
   private onSample: ((progress: InstallProgress) => void) | undefined
 
   constructor(io: WriteProgressIO = {}) {
     this.now = io.now ?? (() => Date.now())
     this.pids = io.pids ?? listProcessTree
-    this.writeBytes = io.writeBytes ?? readWriteBytes
+    this.bytes = io.bytes ?? readProcessIo
   }
 
   setPid(pid: number | undefined) {
@@ -156,23 +165,37 @@ export class GogWriteProgress {
     this.reportedWritten = written
     this.reportedAt = this.now()
     this.rebase()
-    return this.snapshot(written, this.loggedDiskSpeed, this.lastEta)
+    return this.snapshot(written, this.loggedDiskSpeed, this.lastEta, 0)
   }
 
   sample(): InstallProgress | undefined {
     if (!this.total || !this.pid || !this.hasReport) return
-    if (this.now() - this.reportedAt < 1000) return
+    const now = this.now()
+    if (now - this.reportedAt < 1000) return
 
     const extra = this.extraSinceReport()
-    const displayed = Math.min(this.total, this.reportedWritten + extra)
-    if (displayed === this.lastDisplayed) return
+    const displayed = Math.min(this.total, this.reportedWritten + extra.write)
+    const dt = this.lastSampleAt
+      ? (now - this.lastSampleAt) / 1000
+      : (now - this.reportedAt) / 1000
+    const readDelta = Math.max(0, extra.read - this.lastReadExtra)
+    const writeDelta = Math.max(0, extra.write - this.lastWriteExtra)
+    this.lastReadExtra = extra.read
+    this.lastWriteExtra = extra.write
+    this.lastSampleAt = now
 
-    const elapsed = (this.now() - this.reportedAt) / 1000
-    const diskSpeed = elapsed > 0 ? extra / elapsed / MiB : 0
+    const readSpeed = dt > 0 ? readDelta / dt / MiB : 0
+    const writeSpeed = dt > 0 ? writeDelta / dt / MiB : 0
+    const moved = displayed !== this.lastDisplayed
+    const busy = readDelta > 64 * 1024 || writeDelta > 64 * 1024
+    if (!moved && !busy) return
+
     const remaining = this.total - displayed
     const eta =
-      diskSpeed > 0.05 ? formatEta(remaining / (diskSpeed * MiB)) : this.lastEta
-    return this.snapshot(displayed, diskSpeed, eta)
+      writeSpeed > 0.05
+        ? formatEta(remaining / (writeSpeed * MiB))
+        : this.lastEta
+    return this.snapshot(displayed, writeSpeed, eta, readSpeed)
   }
 
   watch(onSample: (progress: InstallProgress) => void) {
@@ -198,30 +221,37 @@ export class GogWriteProgress {
     this.loggedDiskSpeed = 0
     this.loggedDownSpeed = 0
     this.lastDisplayed = -1
+    this.lastSampleAt = 0
+    this.lastReadExtra = 0
+    this.lastWriteExtra = 0
     this.baseline.clear()
   }
 
   private rebase() {
     this.baseline.clear()
+    this.lastReadExtra = 0
+    this.lastWriteExtra = 0
+    this.lastSampleAt = this.now()
     if (!this.pid) return
     for (const pid of this.pids(this.pid)) {
-      const bytes = this.writeBytes(pid)
-      if (bytes != null) this.baseline.set(pid, bytes)
+      const io = this.bytes(pid)
+      if (io) this.baseline.set(pid, io)
     }
   }
 
-  private extraSinceReport(): number {
-    if (!this.pid) return 0
-    let extra = 0
+  private extraSinceReport(): ProcessIo {
+    const extra = { read: 0, write: 0 }
+    if (!this.pid) return extra
     for (const pid of this.pids(this.pid)) {
-      const bytes = this.writeBytes(pid)
-      if (bytes == null) continue
+      const io = this.bytes(pid)
+      if (!io) continue
       const base = this.baseline.get(pid)
-      if (base == null) {
-        this.baseline.set(pid, bytes)
+      if (!base) {
+        this.baseline.set(pid, io)
         continue
       }
-      extra += Math.max(0, bytes - base)
+      extra.read += Math.max(0, io.read - base.read)
+      extra.write += Math.max(0, io.write - base.write)
     }
     return extra
   }
@@ -229,7 +259,8 @@ export class GogWriteProgress {
   private snapshot(
     written: number,
     diskSpeed: number,
-    eta: string
+    eta: string,
+    readSpeed: number
   ): InstallProgress {
     this.lastDisplayed = written
     const percent = Math.round((written / this.total) * 10000) / 100
@@ -239,6 +270,7 @@ export class GogWriteProgress {
       percent,
       diskSpeed,
       downSpeed: this.loggedDownSpeed,
+      readSpeed,
       writtenBytes: written,
       totalBytes: this.total
     }

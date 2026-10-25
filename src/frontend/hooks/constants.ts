@@ -10,6 +10,7 @@ type StatusArgs = {
   size?: string
   writingToDisk?: boolean
   writingDetail?: string
+  readingSpeed?: number
 }
 
 export function getStatusLabel({
@@ -20,7 +21,8 @@ export function getStatusLabel({
   size,
   percent,
   writingToDisk,
-  writingDetail
+  writingDetail,
+  readingSpeed
 }: StatusArgs): string {
   const roundedPercent = Math.ceil(percent || 0)
   const writePercent = (percent ?? 0).toFixed(1)
@@ -30,32 +32,54 @@ export function getStatusLabel({
     playing: t('gamepage:status.playing', 'Playing'),
     queued: `${t('gamepage:status.queued', 'Queued')}`,
     uninstalling: t('gamepage:status.uninstalling', 'Uninstalling'),
-    updating: writingDetail
-      ? t(
-          'gamepage:status.updatingDetail',
-          'Updating Game {{percent}}% · {{detail}}',
-          { percent: writePercent, detail: writingDetail }
-        )
-      : writingToDisk
+    updating:
+      writingDetail && readingSpeed
         ? t(
-            'gamepage:status.updatingWriting',
-            'Updating Game {{percent}}% - writing to disk',
-            { percent: roundedPercent }
+            'gamepage:status.updatingReading',
+            'Updating Game {{percent}}% · {{detail}} · reading {{speed}} MB/s',
+            {
+              percent: writePercent,
+              detail: writingDetail,
+              speed: readingSpeed
+            }
           )
-        : `${t('gamepage:status.updating')} ${roundedPercent}%`,
-    installing: writingDetail
-      ? t(
-          'gamepage:status.installingDetail',
-          'Downloading {{percent}}% · {{detail}}',
-          { percent: writePercent, detail: writingDetail }
-        )
-      : writingToDisk
+        : writingDetail
+          ? t(
+              'gamepage:status.updatingDetail',
+              'Updating Game {{percent}}% · {{detail}}',
+              { percent: writePercent, detail: writingDetail }
+            )
+          : writingToDisk
+            ? t(
+                'gamepage:status.updatingWriting',
+                'Updating Game {{percent}}% - writing to disk',
+                { percent: roundedPercent }
+              )
+            : `${t('gamepage:status.updating')} ${roundedPercent}%`,
+    installing:
+      writingDetail && readingSpeed
         ? t(
-            'gamepage:status.installingWriting',
-            'Downloading {{percent}}% - writing to disk',
-            { percent: roundedPercent }
+            'gamepage:status.installingReading',
+            'Downloading {{percent}}% · {{detail}} · reading {{speed}} MB/s',
+            {
+              percent: writePercent,
+              detail: writingDetail,
+              speed: readingSpeed
+            }
           )
-        : `${t('gamepage:status.downloading', 'Downloading')} ${roundedPercent}%`,
+        : writingDetail
+          ? t(
+              'gamepage:status.installingDetail',
+              'Downloading {{percent}}% · {{detail}}',
+              { percent: writePercent, detail: writingDetail }
+            )
+          : writingToDisk
+            ? t(
+                'gamepage:status.installingWriting',
+                'Downloading {{percent}}% - writing to disk',
+                { percent: roundedPercent }
+              )
+            : `${t('gamepage:status.downloading', 'Downloading')} ${roundedPercent}%`,
     extracting: t('gamepage:status.extracting', 'Extracting'),
     'syncing-saves': t('gamepage:status.syncingSaves', 'Syncing Saves'),
     moving: t('gamepage:gamecard.moving', 'Moving'),

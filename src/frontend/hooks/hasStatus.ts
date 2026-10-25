@@ -70,7 +70,11 @@ export function hasStatus(gameInfo: GameInfo, gameSize?: string) {
           statusContext,
           percent: progress.percent,
           writingToDisk,
-          writingDetail: progress.totalBytes ? progress.bytes : undefined
+          writingDetail: progress.totalBytes ? progress.bytes : undefined,
+          readingSpeed:
+            (progress.readSpeed ?? 0) >= 1 && (progress.diskSpeed ?? 0) < 1
+              ? Math.round(progress.readSpeed ?? 0)
+              : undefined
         })
         return setGameStatus({ status, folder, label, statusContext })
       }
@@ -124,6 +128,8 @@ export function hasStatus(gameInfo: GameInfo, gameSize?: string) {
     progress.percent,
     progress.bytes,
     progress.totalBytes,
+    progress.readSpeed,
+    progress.diskSpeed,
     writingToDisk
   ])
 

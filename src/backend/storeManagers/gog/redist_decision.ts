@@ -1,6 +1,6 @@
 // Decides whether Galaxy Common Redistributables actually need another download.
 
-export interface RedistDepotSnapshot {
+interface RedistDepotSnapshot {
   dependencyId: string
   executable?: { path?: string }
 }
@@ -11,12 +11,12 @@ export interface RedistManifestSnapshot {
   HGLInstalled?: string[]
 }
 
-export interface RedistDecision {
+interface RedistDecision {
   update: boolean
   installed: string[]
 }
 
-export function sharedRedistIds(
+function sharedRedistIds(
   manifest: RedistManifestSnapshot,
   requiredIds: string[]
 ): string[] {
