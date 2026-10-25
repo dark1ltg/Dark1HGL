@@ -1,5 +1,5 @@
 import { createWriteStream } from 'fs'
-import { chmod, stat, mkdir, readFile, writeFile } from 'fs/promises'
+import { chmod, copyFile, stat, mkdir, readFile, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { Readable } from 'stream'
 import { finished } from 'stream/promises'
@@ -16,11 +16,16 @@ type DownloadedBinary =
 
 const RELEASE_TAGS = {
   legendary: '0.21.1',
-  gogdl: 'v1.3.0',
+  // Vendored linux x64 zipapp with the #100 cache-delete ordering fix.
+  // Other platforms still download upstream v1.3.0 assets below.
+  gogdl: 'v1.3.2-cache-delete',
   nile: 'v1.2.0',
   comet: 'v0.2.0',
   'epic-integration': 'v0.4'
 } as const satisfies Record<DownloadedBinary, string>
+
+/** Patched gogdl zipapp checked into vendor/ (see vendor/gogdl/README.md). */
+const VENDORED_GOGDL_LINUX_X64 = join('vendor', 'gogdl', 'gogdl_linux_x86_64')
 
 const pathExists = async (path: string): Promise<boolean> =>
   stat(path).then(
@@ -121,14 +126,32 @@ async function downloadLegendary() {
   )
 }
 
+async function installVendoredGogdlLinuxX64() {
+  if (!(await pathExists(VENDORED_GOGDL_LINUX_X64))) {
+    throw Error(
+      `Missing vendored gogdl at ${VENDORED_GOGDL_LINUX_X64} (cache-delete fix)`
+    )
+  }
+  const exePath = join('public', 'bin', 'x64', 'linux', 'gogdl')
+  await mkdir(dirname(exePath), { recursive: true })
+  await copyFile(VENDORED_GOGDL_LINUX_X64, exePath)
+  await chmod(exePath, '755')
+  console.log(
+    'Installed vendored gogdl 1.3.2 (cache-delete fix) for linux x64 from',
+    VENDORED_GOGDL_LINUX_X64
+  )
+}
+
 async function downloadGogdl() {
+  // linux x64: vendored build with deferred cache deletes (#100).
+  // Other platforms: upstream release until a fixed build is published there.
+  await installVendoredGogdlLinuxX64()
   return downloadGithubAssets(
     'gogdl',
     'Heroic-Games-Launcher/heroic-gogdl',
-    RELEASE_TAGS['gogdl'],
+    'v1.3.0',
     {
       x64: {
-        linux: 'gogdl_linux_x86_64',
         darwin: 'gogdl_macOS_x86_64',
         win32: 'gogdl_windows_x86_64.exe'
       },
