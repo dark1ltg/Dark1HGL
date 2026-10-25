@@ -53,6 +53,7 @@ import type {
 import type {
   GOGBatchImportResult,
   GOGCloudSavesLocation,
+  GOGLibraryFolder,
   GOGScanResult,
   UserData
 } from './gog'
@@ -242,6 +243,9 @@ interface AsyncIPCFunctions {
   importGogGames: (
     games: Array<{ appName: string; path: string }>
   ) => Promise<GOGBatchImportResult>
+  getGogLibraryFolders: () => GOGLibraryFolder[]
+  addGogLibraryFolder: (path: string) => Promise<GOGLibraryFolder[]>
+  removeGogLibraryFolder: (path: string) => Promise<GOGLibraryFolder[]>
   updateGame: (args: UpdateParams) => Promise<void>
   changeInstallPath: (args: MoveGameArgs) => Promise<void>
   egsSync: (arg: string) => Promise<string>

@@ -5,6 +5,7 @@ export type GogInstallPlatform = 'windows' | 'osx' | 'linux'
 export type GOGScanStatus =
   | 'importable'
   | 'installed'
+  | 'moved'
   | 'notOwned'
   | 'unsupportedPlatform'
 
@@ -14,6 +15,11 @@ export interface GOGScanResult {
   path: string
   platform: GogInstallPlatform
   status: GOGScanStatus
+}
+
+export interface GOGLibraryFolder {
+  path: string
+  available: boolean
 }
 
 export interface GOGBatchImportResult {

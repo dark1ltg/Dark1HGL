@@ -68,3 +68,21 @@
 .GogAutoImport__fail {
   color: var(--danger, #f44336);
 }
+
+.GogAutoImport__folder > span:first-child {
+  flex: 1;
+}
+
+.GogAutoImport__online,
+.GogAutoImport__offline {
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.GogAutoImport__online {
+  color: var(--success, #4caf50);
+}
+
+.GogAutoImport__offline {
+  color: var(--text-secondary);
+}

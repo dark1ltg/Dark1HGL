@@ -169,11 +169,20 @@ async function walk(
   }
 }
 
+// The game is known to Heroic but its old location is gone, e.g. the drive
+// got a different letter or mount point
+function needsRelink(installPath: string | undefined, foundPath: string) {
+  return !!installPath && installPath !== foundPath && !existsSync(installPath)
+}
+
 function isPlatformSupported(platform: GogInstallPlatform) {
   if (platform === 'osx') return isMac
   if (platform === 'linux') return isLinux
   return true
 }
+
+export const isActionable = (game: GOGScanResult) =>
+  game.status === 'importable' || game.status === 'moved'
 
 export async function scanForGogGames(
   folders: string[]
@@ -194,8 +203,12 @@ export async function scanForGogGames(
     const gameInfo = libraryManagerMap.gog.getGameInfo(game.appName)
     let status: GOGScanResult['status'] = 'importable'
     if (!gameInfo) status = 'notOwned'
-    else if (gameInfo.is_installed) status = 'installed'
     else if (!isPlatformSupported(game.platform)) status = 'unsupportedPlatform'
+    else if (gameInfo.is_installed) {
+      status = needsRelink(gameInfo.install.install_path, game.path)
+        ? 'moved'
+        : 'installed'
+    }
 
     results.push({
       ...game,
@@ -206,8 +219,8 @@ export async function scanForGogGames(
 
   logInfo(
     `Auto-import: found ${results.length} GOG game(s), ${
-      results.filter((r) => r.status === 'importable').length
-    } importable`,
+      results.filter(isActionable).length
+    } to import or re-link`,
     LogPrefix.Gog
   )
   return results.sort((a, b) => a.title.localeCompare(b.title))
@@ -245,7 +258,11 @@ export async function importGogGames(
     for (const { appName, path } of games) {
       const game = libraryManagerMap.gog.getGame(appName)
       const gameInfo = libraryManagerMap.gog.getGameInfo(appName)
-      if (!gameInfo || gameInfo.is_installed) continue
+      if (!gameInfo) continue
+      const isRelink = gameInfo.is_installed
+      if (isRelink && !needsRelink(gameInfo.install.install_path, path)) {
+        continue
+      }
 
       sendGameStatusUpdate({ appName, runner: 'gog', status: 'importing' })
       try {
@@ -255,7 +272,7 @@ export async function importGogGames(
         } else {
           const platform =
             libraryManagerMap.gog.getGameInfo(appName)?.install.platform
-          if (platform === 'windows') {
+          if (platform === 'windows' && !isRelink) {
             await setDefaultWineSettings(appName, gameInfo.title)
           }
           result.imported.push(appName)
@@ -295,19 +312,4 @@ export async function importGogGames(
     })
   }
   return result
-}
-
-let startupScanDone = false
-
-export async function runStartupAutoImport() {
-  if (startupScanDone) return
-  startupScanDone = true
-
-  const { gogAutoImportOnStartup, gogAutoImportFolders = [] } =
-    GlobalConfig.get().getSettings()
-  if (!gogAutoImportOnStartup || !gogAutoImportFolders.length) return
-
-  const found = await scanForGogGames(gogAutoImportFolders)
-  const importable = found.filter((game) => game.status === 'importable')
-  if (importable.length) await importGogGames(importable)
 }

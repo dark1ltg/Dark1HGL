@@ -56,7 +56,8 @@ describe('scanForGogGames', () => {
       if (appName === '3') return undefined
       return {
         title: `Library ${appName}`,
-        is_installed: appName === '2'
+        is_installed: appName === '2',
+        install: { install_path: join(root, 'Two') }
       }
     })
   })
@@ -91,6 +92,25 @@ describe('scanForGogGames', () => {
     expect(byId['2'].status).toBe('installed')
     expect(byId['3'].status).toBe('notOwned')
     expect(byId['4']).toMatchObject({ platform: 'linux', path: linuxDir })
+  })
+
+  it('flags installed games whose old location is gone as moved', async () => {
+    writeInfo(join(root, 'NewDrive', 'Five'), '5', '5')
+    writeInfo(join(root, 'Six'), '6', '6')
+    mockGetGameInfo.mockImplementation((appName: string) => ({
+      title: `Library ${appName}`,
+      is_installed: true,
+      install: {
+        install_path:
+          appName === '5' ? join(root, 'OldDrive', 'Five') : join(root, 'Six')
+      }
+    }))
+
+    const results = await scanForGogGames([root])
+    const byId = Object.fromEntries(results.map((r) => [r.appName, r]))
+
+    expect(byId['5'].status).toBe('moved')
+    expect(byId['6'].status).toBe('installed')
   })
 
   it('does not scan deeper than the depth limit', async () => {

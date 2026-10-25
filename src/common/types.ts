@@ -100,7 +100,7 @@ export interface AppSettings extends GameSettings {
   autoUpdateGames: boolean
   checkForUpdatesOnStartup: boolean
   gogAutoImportFolders?: string[]
-  gogAutoImportOnStartup?: boolean
+  gogAutoImportEnabled?: boolean
   checkUpdatesInterval: number
   customCSS: string
   customThemesPath: string
