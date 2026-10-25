@@ -26,7 +26,7 @@ import {
   GOGv2Manifest,
   GOGSessionSyncQueueItem
 } from 'common/types/gog'
-import { dirname, join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
 import { existsSync, readFileSync } from 'graceful-fs'
 
 import {
@@ -879,6 +879,38 @@ export default class GOGLibraryManager implements LibraryManager {
 
   getInstalledGames(): InstalledInfo[] {
     return Array.from(installedGames.values())
+  }
+
+  /**
+   * Point an installed game at a new folder. Only the path changes, so a
+   * pinned version, beta channel, or mod setup on the old record stays.
+   */
+  relinkInstalledGame(appName: string, newPath: string): boolean {
+    const installed = installedGames.get(appName)
+    const gameData = library.get(appName)
+    if (!installed || !gameData?.install) {
+      return false
+    }
+
+    const oldPath = installed.install_path
+    const prefix = oldPath && (oldPath.endsWith(sep) ? oldPath : oldPath + sep)
+    installed.install_path = newPath
+    if (!installed.executable || !oldPath || installed.executable === oldPath) {
+      installed.executable = newPath
+    } else if (prefix && installed.executable.startsWith(prefix)) {
+      installed.executable = join(
+        newPath,
+        installed.executable.slice(prefix.length)
+      )
+    }
+
+    gameData.install.install_path = installed.install_path
+    gameData.install.executable = installed.executable
+    gameData.is_installed = true
+    library.set(appName, gameData)
+    installedGamesStore.set('installed', Array.from(installedGames.values()))
+    sendFrontendMessage('pushGameToLibrary', gameData)
+    return true
   }
 
   async changeGameInstallPath(appName: string, newInstallPath: string) {

@@ -99,8 +99,11 @@ export interface AppSettings extends GameSettings {
   altNileBin: string
   autoUpdateGames: boolean
   checkForUpdatesOnStartup: boolean
-  gogAutoImportFolders?: string[]
+  gogAutoImportFolders?: Array<string | { id: string; path: string }>
   gogAutoImportEnabled?: boolean
+  // Marker ids and paths the user removed, so an offline drive cannot add them back
+  gogAutoImportIgnoredIds?: string[]
+  gogAutoImportIgnoredPaths?: string[]
   checkUpdatesInterval: number
   customCSS: string
   customThemesPath: string

@@ -4,17 +4,20 @@ import { join } from 'path'
 
 const mockGetGameInfo = jest.fn()
 const mockImportGame = jest.fn()
+const mockRelink = jest.fn()
+const mockSettings: Record<string, unknown> = {}
 
 jest.mock('backend/storeManagers', () => ({
   libraryManagerMap: {
     gog: {
       getGameInfo: (appName: string) => mockGetGameInfo(appName),
-      getGame: () => ({ importGame: mockImportGame })
+      getGame: () => ({ importGame: mockImportGame }),
+      relinkInstalledGame: (...args: unknown[]) => mockRelink(...args)
     }
   }
 }))
 jest.mock('backend/config', () => ({
-  GlobalConfig: { get: () => ({ getSettings: () => ({}) }) }
+  GlobalConfig: { get: () => ({ getSettings: () => mockSettings }) }
 }))
 jest.mock('backend/game_config', () => ({}))
 jest.mock('backend/constants/environment', () => ({
@@ -37,7 +40,11 @@ jest.mock('backend/utils', () => ({
   writeConfig: jest.fn()
 }))
 
-import { scanForGogGames } from '../auto_import'
+import {
+  chooseAutoImports,
+  importGogGames,
+  scanForGogGames
+} from '../auto_import'
 
 function writeInfo(dir: string, gameId: string, rootGameId: string) {
   mkdirSync(dir, { recursive: true })
@@ -52,6 +59,10 @@ describe('scanForGogGames', () => {
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'heroic-gog-scan-'))
+    delete mockSettings.gogAutoImportFolders
+    mockImportGame.mockReset()
+    mockRelink.mockReset()
+    mockRelink.mockReturnValue(true)
     mockGetGameInfo.mockImplementation((appName: string) => {
       if (appName === '3') return undefined
       return {
@@ -111,6 +122,57 @@ describe('scanForGogGames', () => {
 
     expect(byId['5'].status).toBe('moved')
     expect(byId['6'].status).toBe('installed')
+  })
+
+  it('does not treat another copy as a move while the real drive is offline', async () => {
+    const oldDrive = join(root, 'OldDrive')
+    mockSettings.gogAutoImportFolders = [oldDrive]
+    writeInfo(join(root, 'OtherDrive', 'Five'), '5', '5')
+    mockGetGameInfo.mockImplementation(() => ({
+      title: 'Library 5',
+      is_installed: true,
+      install: { install_path: join(oldDrive, 'Five') }
+    }))
+
+    const [found] = await scanForGogGames([root])
+    expect(found.status).toBe('installed')
+  })
+
+  it('keeps every copy when a game is in more than one folder', async () => {
+    writeInfo(join(root, 'A', 'Five'), '5', '5')
+    writeInfo(join(root, 'B', 'Five'), '5', '5')
+    mockGetGameInfo.mockImplementation(() => ({
+      title: 'Library 5',
+      is_installed: true,
+      install: {
+        install_path: join(root, 'Missing', 'Five'),
+        pinnedVersion: true
+      }
+    }))
+
+    const copies = (await scanForGogGames([root])).filter(
+      (game) => game.appName === '5'
+    )
+    expect(copies).toHaveLength(2)
+    expect(copies.every((game) => game.status === 'moved')).toBe(true)
+    expect(chooseAutoImports(copies)).toEqual([])
+  })
+
+  it('relinks a moved game without importing it again', async () => {
+    const newPath = join(root, 'NewDrive', 'Five')
+    mockGetGameInfo.mockImplementation(() => ({
+      title: 'Library 5',
+      is_installed: true,
+      install: {
+        install_path: join(root, 'Missing', 'Five'),
+        pinnedVersion: true
+      }
+    }))
+
+    const result = await importGogGames([{ appName: '5', path: newPath }])
+    expect(result.imported).toEqual([newPath])
+    expect(mockRelink).toHaveBeenCalledWith('5', newPath)
+    expect(mockImportGame).not.toHaveBeenCalled()
   })
 
   it('does not scan deeper than the depth limit', async () => {

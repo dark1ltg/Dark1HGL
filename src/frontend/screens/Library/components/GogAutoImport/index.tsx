@@ -81,14 +81,27 @@ export default function GogAutoImport() {
       folders.filter((folder) => folder.available).map(({ path }) => path)
     )
     setResults(found)
-    setSelected(new Set(found.filter(isActionable).map((game) => game.appName)))
+    const picked = new Set<string>()
+    const pickedApps = new Set<string>()
+    for (const game of found) {
+      if (!isActionable(game) || pickedApps.has(game.appName)) continue
+      pickedApps.add(game.appName)
+      picked.add(game.path)
+    }
+    setSelected(picked)
     setScanning(false)
   }
 
-  const toggleSelected = (appName: string) => {
+  const toggleSelected = (game: GOGScanResult) => {
     const next = new Set(selected)
-    if (next.has(appName)) next.delete(appName)
-    else next.add(appName)
+    if (next.has(game.path)) {
+      next.delete(game.path)
+    } else {
+      for (const other of results ?? []) {
+        if (other.appName === game.appName) next.delete(other.path)
+      }
+      next.add(game.path)
+    }
     setSelected(next)
   }
 
@@ -134,10 +147,10 @@ export default function GogAutoImport() {
     if (isImporting) {
       return <FontAwesomeIcon className="fa-spin-pulse" icon={faSpinner} />
     }
-    if (importResult?.imported.includes(game.appName)) {
+    if (importResult?.imported.includes(game.path)) {
       return <FontAwesomeIcon className="GogAutoImport__ok" icon={faCheck} />
     }
-    if (importResult?.failed.includes(game.appName)) {
+    if (importResult?.failed.includes(game.path)) {
       return <FontAwesomeIcon className="GogAutoImport__fail" icon={faXmark} />
     }
     return (
@@ -145,8 +158,8 @@ export default function GogAutoImport() {
         type="checkbox"
         aria-label={game.title}
         disabled={!isActionable(game) || importing}
-        checked={selected.has(game.appName)}
-        onChange={() => toggleSelected(game.appName)}
+        checked={selected.has(game.path)}
+        onChange={() => toggleSelected(game)}
       />
     )
   }
@@ -217,7 +230,7 @@ export default function GogAutoImport() {
               )}
             </h6>
             {results.map((game) => (
-              <div className="GogAutoImport__row" key={game.appName}>
+              <div className="GogAutoImport__row" key={game.path}>
                 <span className="GogAutoImport__state">{rowState(game)}</span>
                 <span className="GogAutoImport__title">{game.title}</span>
                 <span className="GogAutoImport__status">

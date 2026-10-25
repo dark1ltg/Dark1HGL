@@ -23,6 +23,7 @@ export interface GOGLibraryFolder {
 }
 
 export interface GOGBatchImportResult {
+  // Install paths, so two copies of one game can be told apart
   imported: string[]
   failed: string[]
 }

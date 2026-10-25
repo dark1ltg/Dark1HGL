@@ -1,11 +1,23 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'fs'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
 
 const mockSettings: Record<string, unknown> = {}
 
 jest.mock('backend/storeManagers', () => ({
-  libraryManagerMap: { gog: {} }
+  libraryManagerMap: {
+    gog: {
+      getInstalledGames: () => [],
+      relinkInstalledGame: jest.fn()
+    }
+  }
 }))
 jest.mock('backend/config', () => ({
   GlobalConfig: {
@@ -28,8 +40,8 @@ jest.mock('backend/logger', () => ({
   LogPrefix: { Gog: 'GOG' }
 }))
 jest.mock('../auto_import', () => ({
+  chooseAutoImports: jest.fn(),
   importGogGames: jest.fn(),
-  isActionable: jest.fn(),
   scanForGogGames: jest.fn()
 }))
 
@@ -38,7 +50,8 @@ import {
   findMarkedFolders,
   LIBRARY_MARKER_FILE,
   listLibraryFolders,
-  removeLibraryFolder
+  removeLibraryFolder,
+  syncMarkedFolder
 } from '../library_folders'
 
 describe('GOG library folders', () => {
@@ -47,6 +60,8 @@ describe('GOG library folders', () => {
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'heroic-gog-folders-'))
     delete mockSettings.gogAutoImportFolders
+    delete mockSettings.gogAutoImportIgnoredIds
+    delete mockSettings.gogAutoImportIgnoredPaths
   })
 
   afterEach(() => {
@@ -64,6 +79,39 @@ describe('GOG library folders', () => {
 
     expect(await removeLibraryFolder(folder)).toEqual([])
     expect(existsSync(join(folder, LIBRARY_MARKER_FILE))).toBe(false)
+  })
+
+  it('does not bring back a folder removed while its drive was unplugged', async () => {
+    const folder = join(root, 'GOG Games')
+    mkdirSync(folder)
+    await addLibraryFolder(folder)
+    const { id } = JSON.parse(
+      readFileSync(join(folder, LIBRARY_MARKER_FILE), 'utf-8')
+    )
+    rmSync(folder, { recursive: true, force: true })
+
+    expect(await removeLibraryFolder(folder)).toEqual([])
+
+    mkdirSync(folder)
+    writeFileSync(join(folder, LIBRARY_MARKER_FILE), JSON.stringify({ id }))
+    expect(await syncMarkedFolder(folder)).toBe('ignored')
+    expect(listLibraryFolders()).toEqual([])
+  })
+
+  it('follows a library folder that comes back at a new path', async () => {
+    const folder = join(root, 'DriveE', 'GOG Games')
+    const moved = join(root, 'DriveF', 'GOG Games')
+    mkdirSync(folder, { recursive: true })
+    await addLibraryFolder(folder)
+    const { id } = JSON.parse(
+      readFileSync(join(folder, LIBRARY_MARKER_FILE), 'utf-8')
+    )
+    rmSync(dirname(folder), { recursive: true, force: true })
+
+    mkdirSync(moved, { recursive: true })
+    writeFileSync(join(moved, LIBRARY_MARKER_FILE), JSON.stringify({ id }))
+    expect(await syncMarkedFolder(moved)).toBe('relocated')
+    expect(listLibraryFolders()).toEqual([{ path: moved, available: true }])
   })
 
   it('reports folders on disconnected drives as unavailable', () => {

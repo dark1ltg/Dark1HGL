@@ -1,6 +1,6 @@
 import { Dirent, existsSync } from 'graceful-fs'
 import { readdir, readFile } from 'fs/promises'
-import { basename, join } from 'path'
+import { basename, join, sep } from 'path'
 import { t } from 'i18next'
 
 import { libraryManagerMap } from 'backend/storeManagers'
@@ -169,10 +169,28 @@ async function walk(
   }
 }
 
-// The game is known to Heroic but its old location is gone, e.g. the drive
-// got a different letter or mount point
+function isInside(root: string, target: string) {
+  if (target === root) return true
+  const prefix = root.endsWith(sep) ? root : root + sep
+  return target.startsWith(prefix)
+}
+
+// Library folders that are saved but not currently mounted. A game whose
+// install path is on one of these is unplugged, not moved.
+function offlineLibraryRoots(): string[] {
+  const folders = GlobalConfig.get().getSettings().gogAutoImportFolders ?? []
+  return folders
+    .map((folder) => (typeof folder === 'string' ? folder : folder.path))
+    .filter((folder) => folder && !existsSync(folder))
+}
+
+// The saved install path is gone, and it is not on a drive that is simply
+// unplugged. Another copy found while the real drive is offline is left alone.
 function needsRelink(installPath: string | undefined, foundPath: string) {
-  return !!installPath && installPath !== foundPath && !existsSync(installPath)
+  if (!installPath || installPath === foundPath || existsSync(installPath)) {
+    return false
+  }
+  return !offlineLibraryRoots().some((root) => isInside(root, installPath))
 }
 
 function isPlatformSupported(platform: GogInstallPlatform) {
@@ -184,6 +202,30 @@ function isPlatformSupported(platform: GogInstallPlatform) {
 export const isActionable = (game: GOGScanResult) =>
   game.status === 'importable' || game.status === 'moved'
 
+// One copy per game. Two copies means the user has to pick; guessing would
+// point the game at the wrong folder.
+export function chooseAutoImports(games: GOGScanResult[]): GOGScanResult[] {
+  const byApp = new Map<string, GOGScanResult[]>()
+  for (const game of games.filter(isActionable)) {
+    const copies = byApp.get(game.appName) ?? []
+    copies.push(game)
+    byApp.set(game.appName, copies)
+  }
+
+  const chosen: GOGScanResult[] = []
+  for (const [appName, copies] of byApp) {
+    if (copies.length === 1) {
+      chosen.push(copies[0])
+    } else {
+      logInfo(
+        `Auto-import: ${appName} was found in ${copies.length} folders, leaving it for you to choose`,
+        LogPrefix.Gog
+      )
+    }
+  }
+  return chosen
+}
+
 export async function scanForGogGames(
   folders: string[]
 ): Promise<GOGScanResult[]> {
@@ -194,18 +236,18 @@ export async function scanForGogGames(
     await walk(folder, 0, detected)
   }
 
-  const seen = new Set<string>()
+  const seenPaths = new Set<string>()
   const results: GOGScanResult[] = []
   for (const game of detected) {
-    if (seen.has(game.appName)) continue
-    seen.add(game.appName)
+    if (seenPaths.has(game.path)) continue
+    seenPaths.add(game.path)
 
     const gameInfo = libraryManagerMap.gog.getGameInfo(game.appName)
     let status: GOGScanResult['status'] = 'importable'
     if (!gameInfo) status = 'notOwned'
     else if (!isPlatformSupported(game.platform)) status = 'unsupportedPlatform'
     else if (gameInfo.is_installed) {
-      status = needsRelink(gameInfo.install.install_path, game.path)
+      status = needsRelink(gameInfo.install?.install_path, game.path)
         ? 'moved'
         : 'installed'
     }
@@ -242,52 +284,63 @@ async function setDefaultWineSettings(appName: string, title: string) {
   })
 }
 
-let batchInProgress = false
+let importQueue: Promise<void> = Promise.resolve()
 
-export async function importGogGames(
+async function runImport(
   games: Array<{ appName: string; path: string }>
 ): Promise<GOGBatchImportResult> {
   const result: GOGBatchImportResult = { imported: [], failed: [] }
-  if (batchInProgress) {
-    logInfo('Auto-import: an import is already running', LogPrefix.Gog)
-    return result
-  }
-  batchInProgress = true
+  const handled = new Set<string>()
 
-  try {
-    for (const { appName, path } of games) {
-      const game = libraryManagerMap.gog.getGame(appName)
-      const gameInfo = libraryManagerMap.gog.getGameInfo(appName)
-      if (!gameInfo) continue
-      const isRelink = gameInfo.is_installed
-      if (isRelink && !needsRelink(gameInfo.install.install_path, path)) {
-        continue
-      }
+  for (const { appName, path } of games) {
+    if (handled.has(appName)) {
+      logInfo(
+        `Auto-import: skipping extra copy of ${appName} at ${path}`,
+        LogPrefix.Gog
+      )
+      continue
+    }
+    handled.add(appName)
 
-      sendGameStatusUpdate({ appName, runner: 'gog', status: 'importing' })
-      try {
-        const { abort, error } = await game.importGame(path)
+    const gameInfo = libraryManagerMap.gog.getGameInfo(appName)
+    if (!gameInfo) continue
+    const isRelink = !!gameInfo.is_installed
+    if (isRelink && !needsRelink(gameInfo.install.install_path, path)) {
+      continue
+    }
+
+    sendGameStatusUpdate({ appName, runner: 'gog', status: 'importing' })
+    try {
+      if (isRelink) {
+        const relinked = libraryManagerMap.gog.relinkInstalledGame(
+          appName,
+          path
+        )
+        if (relinked) result.imported.push(path)
+        else result.failed.push(path)
+      } else {
+        const { abort, error } = await libraryManagerMap.gog
+          .getGame(appName)
+          .importGame(path)
         if (abort || error) {
-          result.failed.push(appName)
+          result.failed.push(path)
         } else {
           const platform =
             libraryManagerMap.gog.getGameInfo(appName)?.install.platform
-          if (platform === 'windows' && !isRelink) {
+          if (platform === 'windows') {
             await setDefaultWineSettings(appName, gameInfo.title)
           }
-          result.imported.push(appName)
+          result.imported.push(path)
         }
-      } catch (error) {
-        logError(
-          [`Auto-import: failed to import ${appName}`, error],
-          LogPrefix.Gog
-        )
-        result.failed.push(appName)
       }
-      sendGameStatusUpdate({ appName, runner: 'gog', status: 'done' })
+    } catch (error) {
+      logError(
+        [`Auto-import: failed to import ${appName}`, error],
+        LogPrefix.Gog
+      )
+      result.failed.push(path)
     }
-  } finally {
-    batchInProgress = false
+    sendGameStatusUpdate({ appName, runner: 'gog', status: 'done' })
   }
 
   logInfo(
@@ -312,4 +365,17 @@ export async function importGogGames(
     })
   }
   return result
+}
+
+// Manual imports wait for a scan that's already running instead of being
+// dropped, and the caller gets the result of its own request.
+export function importGogGames(
+  games: Array<{ appName: string; path: string }>
+): Promise<GOGBatchImportResult> {
+  const job = importQueue.then(() => runImport(games))
+  importQueue = job.then(
+    () => undefined,
+    () => undefined
+  )
+  return job
 }
