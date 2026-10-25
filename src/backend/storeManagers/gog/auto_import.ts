@@ -12,6 +12,7 @@ import { notify } from 'backend/dialog/dialog'
 import { logError, logInfo, LogPrefix } from 'backend/logger'
 import { sendFrontendMessage } from 'backend/ipc'
 import { removeSpecialcharacters, writeConfig } from 'backend/utils'
+import { preferDetectedProton } from 'backend/utils/compatibility_layers'
 import type {
   GOGAutoImportProgress,
   GOGBatchImportResult,
@@ -307,7 +308,7 @@ async function setDefaultWineSettings(appName: string, title: string) {
   await writeConfig(appName, {
     ...gameSettings,
     winePrefix: join(defaultWinePrefixDir, removeSpecialcharacters(title)),
-    wineVersion,
+    wineVersion: await preferDetectedProton(wineVersion),
     wineCrossoverBottle
   })
 }

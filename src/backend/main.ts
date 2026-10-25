@@ -60,6 +60,7 @@ import {
   getGame
 } from './utils'
 import { startPlausible } from './utils/plausible'
+import { preferDetectedProton } from './utils/compatibility_layers'
 
 import {
   getDiskInfo,
@@ -148,6 +149,7 @@ if (isLinux) app.commandLine?.appendSwitch('--gtk-version', '3')
 async function initializeWindow(): Promise<BrowserWindow> {
   createNecessaryFolders()
   configStore.set('userHome', userHome)
+  void preferDetectedProton(GlobalConfig.get().getSettings().wineVersion)
   const mainWindow = createMainWindow()
 
   if ((isSteamDeckGameMode || isCLIFullscreen) && !isCLINoGui) {
