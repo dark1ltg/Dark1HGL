@@ -34,8 +34,22 @@
   align-self: flex-start;
 }
 
-.GogAutoImport__results {
+.GogAutoImport__summary {
   margin-top: var(--space-md);
+}
+
+.GogAutoImport__summary h6,
+.GogAutoImport__progress {
+  margin: 0;
+}
+
+.GogAutoImport__progress {
+  margin-top: var(--space-3xs);
+  font-weight: 600;
+}
+
+.GogAutoImport__results {
+  margin-top: var(--space-sm);
   max-height: 45vh;
   overflow-y: auto;
 }

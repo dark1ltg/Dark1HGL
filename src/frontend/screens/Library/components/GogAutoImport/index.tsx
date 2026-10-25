@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -38,6 +38,7 @@ export default function GogAutoImport() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [importing, setImporting] = useState(false)
   const [activePath, setActivePath] = useState<string>()
+  const [importTotal, setImportTotal] = useState(0)
   const [importResult, setImportResult] = useState<GOGBatchImportResult>()
 
   useEffect(() => {
@@ -118,6 +119,7 @@ export default function GogAutoImport() {
   const scan = async () => {
     setScanning(true)
     setImportResult(undefined)
+    setImportTotal(0)
     const found = await window.api.scanForGogGames(
       folders.filter((folder) => folder.available).map(({ path }) => path)
     )
@@ -154,16 +156,18 @@ export default function GogAutoImport() {
     const toImport = results
       .filter((game) => selected.has(game.path))
       .map(({ appName, path }) => ({ appName, path }))
+    setImportTotal(toImport.length)
     setImportResult(await window.api.importGogGames(toImport))
     setActivePath(undefined)
     setSelected(new Set())
     setImporting(false)
   }
 
-  const importableCount = useMemo(
-    () => results?.filter(isActionable).length ?? 0,
-    [results]
-  )
+  const importedCount = importResult?.imported.length ?? 0
+  const selectedCount =
+    importing || (importTotal > 0 && selected.size === 0)
+      ? importTotal
+      : selected.size
 
   const statusLabel = (game: GOGScanResult) => {
     if (activePath === game.path) {
@@ -265,14 +269,28 @@ export default function GogAutoImport() {
         />
 
         {results && (
-          <div className="GogAutoImport__results">
+          <div className="GogAutoImport__summary">
             <h6>
               {t(
-                'gog-auto-import.found',
-                'Found {{total}} game(s), {{importable}} to import or re-link',
-                { total: results.length, importable: importableCount }
+                'gog-auto-import.found-selected',
+                '{{found}} games found, {{selected}} selected',
+                { found: results.length, selected: selectedCount }
               )}
             </h6>
+            {importTotal > 0 && (
+              <p className="GogAutoImport__progress">
+                {t(
+                  'gog-auto-import.progress',
+                  '{{done}} of {{total}} imported',
+                  { done: importedCount, total: importTotal }
+                )}
+              </p>
+            )}
+          </div>
+        )}
+
+        {results && (
+          <div className="GogAutoImport__results">
             {results.map((game) => (
               <div
                 className={
@@ -314,7 +332,10 @@ export default function GogAutoImport() {
           disabled={!selected.size || scanning || importing}
         >
           {importing
-            ? t('gog-auto-import.importing', 'Importing…')
+            ? t('gog-auto-import.progress', '{{done}} of {{total}} imported', {
+                done: importedCount,
+                total: importTotal
+              })
             : t('gog-auto-import.import', 'Import {{count}} game(s)', {
                 count: selected.size
               })}
