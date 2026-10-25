@@ -25,6 +25,10 @@ const downloadManager = new TypeCheckedStoreBackend('downloadManager', {
 let queueState: DownloadManagerState = 'idle'
 let currentElement: DMQueueElement | null = null
 let autoPaused = false
+// Dependencies captured when a game update stops a running redistributable
+// sync. The aborted item is removed from the queue, then queued again behind
+// the game so the download the user asked for can start.
+let redistInterruptedForGame: string[] | null = null
 
 onConnectivityChange((status) => {
   if (status === 'offline' && isRunning()) {
@@ -53,6 +57,56 @@ function isIdle(): boolean {
 
 function isRunning(): boolean {
   return queueState === 'running'
+}
+
+function isGameUpdate(element: DMQueueElement): boolean {
+  return element.type === 'update' && element.params.appName !== 'gog-redist'
+}
+
+// The download list only runs queue[0]. A game update has to be ahead of the
+// Galaxy redistributable sync or it stays under Queued until that sync ends.
+function moveAheadOfRedist(
+  elements: DMQueueElement[],
+  element: DMQueueElement
+) {
+  const gameIndex = elements.findIndex(
+    (queued) =>
+      queued.params.appName === element.params.appName &&
+      queued.params.runner === element.params.runner
+  )
+  const redistIndex = elements.findIndex(
+    (queued) => queued.params.appName === 'gog-redist'
+  )
+  if (gameIndex === -1 || redistIndex === -1 || gameIndex <= redistIndex) {
+    return
+  }
+  const [game] = elements.splice(gameIndex, 1)
+  elements.splice(redistIndex, 0, game)
+}
+
+function queueGogRedist(
+  elements: DMQueueElement[],
+  element: DMQueueElement,
+  dependencies: string[]
+) {
+  if (isGameUpdate(element)) {
+    const queuedRedist = elements.find(
+      (queued) => queued.params.appName === 'gog-redist'
+    )
+    if (queuedRedist) {
+      queuedRedist.params.dependencies = [
+        ...new Set([
+          ...(queuedRedist.params.dependencies ?? []),
+          ...dependencies
+        ])
+      ]
+      return
+    }
+  }
+
+  const redistElement = createRedistDMQueueElement()
+  redistElement.params.dependencies = dependencies
+  elements.push(redistElement)
 }
 
 function addToFinished(element: DMQueueElement, status: DMStatus) {
@@ -104,8 +158,27 @@ async function initQueue() {
     if (!isPaused()) {
       addToFinished(element, status)
       removeFromQueue(element.params.appName)
+      if (redistInterruptedForGame && element.params.appName === 'gog-redist') {
+        const dependencies = redistInterruptedForGame
+        redistInterruptedForGame = null
+        const remaining = downloadManager.get('queue', [])
+        if (
+          !remaining.some((queued) => queued.params.appName === 'gog-redist')
+        ) {
+          const redistElement = createRedistDMQueueElement()
+          redistElement.params.dependencies = dependencies
+          remaining.push(redistElement)
+          downloadManager.set('queue', remaining)
+          sendFrontendMessage(
+            'changedDMQueueInformation',
+            remaining,
+            queueState
+          )
+        }
+      }
       element = getFirstQueueElement()
     } else {
+      redistInterruptedForGame = null
       element = null
     }
   }
@@ -170,16 +243,19 @@ async function addToQueue(element: DMQueueElement) {
       ) {
         const newDependencies = installInfo.manifest.dependencies || []
         if (newDependencies?.length || !existsSync(gogRedistPath)) {
-          // create redist element
-          const redistElement = createRedistDMQueueElement()
-          redistElement.params.dependencies = newDependencies
-          elements.push(redistElement)
+          // Installs still download redistributables first. Updates used to
+          // do the same, which left the game sitting in Queued.
+          queueGogRedist(elements, element, newDependencies)
         }
       }
     } else {
       element.params.size = '?? MB'
     }
     elements.push(element)
+  }
+
+  if (isGameUpdate(element)) {
+    moveAheadOfRedist(elements, element)
   }
 
   downloadManager.set('queue', elements)
@@ -190,7 +266,23 @@ async function addToQueue(element: DMQueueElement) {
 
   sendFrontendMessage('changedDMQueueInformation', elements, queueState)
 
-  if (isIdle()) {
+  const interruptRedist =
+    isGameUpdate(element) &&
+    isRunning() &&
+    currentElement?.params.appName === 'gog-redist'
+
+  if (interruptRedist) {
+    logInfo(
+      [
+        'Stopping GOG redistributables so',
+        element.params.gameInfo.title,
+        'can update'
+      ],
+      LogPrefix.DownloadManager
+    )
+    redistInterruptedForGame = currentElement?.params.dependencies ?? []
+    callAbortController('gog-redist')
+  } else if (isIdle()) {
     void initQueue()
   }
 }
