@@ -9,13 +9,13 @@
   "main": "build/main/main.js",
   "homepage": "./",
   "license": "GPL-3.0-only",
-  "description": "An Open Source Launcher for GOG, Epic Games and Amazon Games",
+  "description": "dark1ltg fork of Heroic: GOG library folders + x86_64 Linux AppImage",
   "repository": {
     "type": "Github",
-    "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher"
+    "url": "https://github.com/dark1ltg/HeroicGamesLauncher"
   },
   "author": {
-    "name": "Heroic Games Launcher",
+    "name": "Heroic Games Launcher (dark1ltg fork)",
     "email": "heroicgameslauncher@protonmail.com"
   },
   "engines": {

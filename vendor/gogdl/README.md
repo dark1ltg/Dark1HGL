@@ -1,18 +1,22 @@
 # Vendored gogdl (linux x86_64)
 
-Zipapp build of [dark1ltg/heroic-gogdl](https://github.com/dark1ltg/heroic-gogdl) `fix/cache-delete-ordering` at version **1.3.2**.
+Zipapp **gogdl 1.3.2** with the V2 cache-delete ordering fix for [heroic-gogdl#100](https://github.com/Heroic-Games-Launcher/heroic-gogdl/issues/100).
 
 ## Why
 
-Upstream `Heroic-Games-Launcher/heroic-gogdl` v1.3.0 can hang GOG V2 updates when a shared cache chunk is deleted before the writer reads it ([heroic-gogdl#100](https://github.com/Heroic-Games-Launcher/heroic-gogdl/issues/100)). This build defers those deletes until after the file's chunk tasks and flushes Writer exception prints to `update.log`.
+Upstream `Heroic-Games-Launcher/heroic-gogdl` **v1.3.0** can hang GOG V2 updates when a shared cache chunk is deleted before the writer reads it. This build:
 
-`meta/downloadHelperBinaries.ts` installs this binary for linux x64 instead of downloading upstream.
+1. Defers those `DELETE_FILE` tasks until after the file’s chunk tasks
+2. Flushes Writer exception prints so they appear in Heroic’s `update.log`
+
+`meta/downloadHelperBinaries.ts` copies `gogdl_linux_x86_64` into `public/bin/x64/linux/gogdl` for linux x64 (other platforms still download upstream release assets).
 
 ## Rebuild
 
+Build a linux x86_64 zipapp from a gogdl tree that includes the cache-delete deferral (managers `FileDiff` / `FilePatchDiff` task ordering) and Writer `flush=True`, versioned `1.3.2`, then:
+
 ```bash
-# from a checkout of dark1ltg/heroic-gogdl on fix/cache-delete-ordering
-python3 -m pip install -e .
-python3 scripts/zipapp.py   # or the project's zipapp build steps
 cp gogdl_linux_x86_64 /path/to/HeroicGamesLauncher/vendor/gogdl/
+pnpm download-helper-binaries
+public/bin/x64/linux/gogdl --version   # expect 1.3.2
 ```

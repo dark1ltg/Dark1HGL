@@ -1,5 +1,8 @@
 # Heroic Games Launcher — Copilot Instructions
 
+> **This checkout is the [dark1ltg/HeroicGamesLauncher](https://github.com/dark1ltg/HeroicGamesLauncher) fork.**  
+> Read [FORK.md](../FORK.md) and [AGENTS.md](../AGENTS.md). Scope: GOG library-folder / auto-import only; ship **x86_64 AppImage** only; linux x64 gogdl is vendored under `vendor/gogdl/`.
+
 ## Architecture Overview
 
 Heroic is an Electron app (TypeScript, React, electron-vite) that launches games from Epic Games Store, GOG, and Amazon Games. It wraps CLI tools (legendary, gogdl, nile) behind a unified **Runner** abstraction.
@@ -69,7 +72,7 @@ pnpm start                             # dev mode with HMR
 - **Lint**: `pnpm lint`
 - **Unit tests**: `pnpm test` (Jest, ts-jest). Tests live in `__tests__/` folders alongside source.
 - **E2E tests**: `pnpm test:e2e` (Playwright). Tests in `e2e/`.
-- **Build**: `pnpm dist:linux`, `pnpm dist:win`, `pnpm dist:mac`
+- **Build (this fork)**: `pnpm dist:linux AppImage --x64 --publish=never` — do not treat Windows/macOS/Flatpak packaging as a ship target unless the operator asks
 
 ## Testing Notes
 
