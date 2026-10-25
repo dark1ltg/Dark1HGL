@@ -12,11 +12,14 @@ const mockInstallQueueElement = jest.fn()
 const mockAbort = jest.fn()
 const mockCreateRedist = jest.fn()
 const mockExistsSync = jest.fn(() => true)
+const mockSendStatus = jest.fn()
 
 jest.mock('backend/electron_store', () => ({
   TypeCheckedStoreBackend: class {
     get(key: 'queue' | 'finished', fallback: DMQueueElement[]) {
-      return mockStoreData[key] ?? fallback
+      // A missing key must not return one shared array. That is what let a
+      // later redistributable sync replace the game that was already downloading.
+      return structuredClone(mockStoreData[key] ?? fallback)
     }
 
     set(key: 'queue' | 'finished', value: DMQueueElement[]) {
@@ -56,7 +59,7 @@ jest.mock('backend/logger', () => ({
 jest.mock('backend/utils', () => ({
   getFileSize: () => '1 MB',
   removeFolder: jest.fn(),
-  sendGameStatusUpdate: jest.fn()
+  sendGameStatusUpdate: (...args: unknown[]) => mockSendStatus(...args)
 }))
 
 jest.mock('../utils', () => ({
@@ -227,5 +230,61 @@ describe('GOG download queue', () => {
 
     expect(getQueueInformation().state).toBe('idle')
     expect(getQueueInformation().elements).toEqual([])
+  })
+
+  test('keeps a running game download visible when redistributables are queued later', async () => {
+    const pending: Record<string, (value: { status: 'done' }) => void> = {}
+    mockUpdateQueueElement.mockImplementation((params: { appName: string }) => {
+      return new Promise((resolve) => {
+        pending[params.appName] = resolve
+      })
+    })
+    let releaseRedistInfo: (value: {
+      manifest: { download_size: number }
+    }) => void = () => {}
+    mockGetInstallInfo.mockImplementation((appName: string) => {
+      if (appName === 'gog-redist') {
+        return new Promise((resolve) => {
+          releaseRedistInfo = resolve
+        })
+      }
+      return Promise.resolve({
+        manifest: { download_size: 100, dependencies: ['ISI'] }
+      })
+    })
+    mockSendStatus.mockImplementation(
+      (payload: { appName?: string; status?: string }) => {
+        if (payload.status === 'queued' && payload.appName === '1207658642') {
+          expect(
+            mockStoreData.queue?.some(
+              (item) => item.params.appName === '1207658642'
+            )
+          ).toBe(true)
+        }
+      }
+    )
+
+    const { addToQueue, getQueueInformation } = await loadQueue()
+    const redistAdded = addToQueue(redistElement())
+    await Promise.resolve()
+
+    await addToQueue(gameElement('update'))
+    expect(getQueueInformation().elements[0]?.params.appName).toBe('1207658642')
+    expect(getQueueInformation().state).toBe('running')
+
+    releaseRedistInfo({ manifest: { download_size: 10 } })
+    await redistAdded
+
+    expect(
+      getQueueInformation().elements.map((element) => element.params.appName)
+    ).toEqual(['1207658642', 'gog-redist'])
+    expect(
+      mockUpdateQueueElement.mock.calls.map((call) => call[0].appName)
+    ).toEqual(['1207658642'])
+
+    pending['1207658642']({ status: 'done' })
+    await drain()
+    pending['gog-redist']?.({ status: 'done' })
+    await drain()
   })
 })
