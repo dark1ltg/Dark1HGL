@@ -19,3 +19,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
           GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          # Publish straight to the Releases page instead of leaving a draft
+          EP_DRAFT: 'false'
