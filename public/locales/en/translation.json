@@ -933,7 +933,7 @@
         "library_top_section": "Library Top Section",
         "log": {
             "descriptiveNames": {
-                "game-log": "Game log of {{gameTitle}}",
+                "game-log-typed": "{{type}} log of {{gameTitle}}",
                 "gog": "GOG log",
                 "heroic": "General Heroic log",
                 "legendary": "Epic Games / Legendary log",
@@ -945,8 +945,17 @@
             "instructions_title": "How to report a problem?",
             "join-heroic-discord": "Join our Discord",
             "no-file": "No log file found",
+            "no-file-launch": "No launch log found. An update writes to the Update log instead — open that tab above, or look under ~/.local/state/Heroic/logs/games/<id>_gog/update.log",
             "show-in-folder": "Show log file in folder",
             "show-uploads": "Show uploaded log files",
+            "types": {
+                "import": "Import",
+                "install": "Install",
+                "launch": "Launch",
+                "repair": "Repair",
+                "setup": "Setup",
+                "update": "Update"
+            },
             "upload": {
                 "actions": "Actions",
                 "button": "Upload log file",
