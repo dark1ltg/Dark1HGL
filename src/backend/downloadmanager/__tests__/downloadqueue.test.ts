@@ -13,6 +13,7 @@ const mockAbort = jest.fn()
 const mockCreateRedist = jest.fn()
 const mockExistsSync = jest.fn(() => true)
 const mockSendStatus = jest.fn()
+const mockCheckRedist = jest.fn()
 
 jest.mock('backend/electron_store', () => ({
   TypeCheckedStoreBackend: class {
@@ -77,7 +78,8 @@ jest.mock('i18next', () => ({
   default: { t: (key: string) => key }
 }))
 jest.mock('backend/storeManagers/gog/redist', () => ({
-  createRedistDMQueueElement: () => mockCreateRedist()
+  createRedistDMQueueElement: () => mockCreateRedist(),
+  checkForRedistUpdates: () => mockCheckRedist()
 }))
 jest.mock('backend/storeManagers/gog/constants', () => ({
   gogRedistPath: '/tmp/gog-redist'
@@ -159,7 +161,7 @@ describe('GOG download queue', () => {
     mockInstallQueueElement.mockResolvedValue({ status: 'done' })
   })
 
-  test('starts a Windows GOG update before redistributables', async () => {
+  test('does not queue redistributables for a Windows GOG update', async () => {
     const { addToQueue, getQueueInformation } = await loadQueue()
 
     await addToQueue(gameElement('update'))
@@ -167,12 +169,26 @@ describe('GOG download queue', () => {
 
     expect(
       mockUpdateQueueElement.mock.calls.map((call) => call[0].appName)
-    ).toEqual(['1207658642', 'gog-redist'])
-    expect(mockInstallQueueElement).not.toHaveBeenCalled()
+    ).toEqual(['1207658642'])
+    expect(mockCreateRedist).not.toHaveBeenCalled()
+    expect(mockCheckRedist).toHaveBeenCalled()
     expect(getQueueInformation().state).toBe('idle')
   })
 
-  test('still downloads redistributables before a Windows GOG install', async () => {
+  test('does not queue redistributables for an install when they are already stored', async () => {
+    const { addToQueue } = await loadQueue()
+
+    await addToQueue(gameElement('install'))
+    await drain()
+
+    expect(mockUpdateQueueElement).not.toHaveBeenCalled()
+    expect(
+      mockInstallQueueElement.mock.calls.map((call) => call[0].appName)
+    ).toEqual(['1207658642'])
+  })
+
+  test('downloads missing redistributables before a Windows GOG install', async () => {
+    mockExistsSync.mockReturnValue(false)
     const { addToQueue } = await loadQueue()
 
     await addToQueue(gameElement('install'))

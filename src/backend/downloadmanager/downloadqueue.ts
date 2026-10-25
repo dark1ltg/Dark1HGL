@@ -8,8 +8,12 @@ import { sendFrontendMessage } from '../ipc'
 import { callAbortController } from 'backend/utils/aborthandler/aborthandler'
 import { notify } from '../dialog/dialog'
 import i18next from 'i18next'
-import { createRedistDMQueueElement } from 'backend/storeManagers/gog/redist'
+import {
+  checkForRedistUpdates,
+  createRedistDMQueueElement
+} from 'backend/storeManagers/gog/redist'
 import { existsSync } from 'fs'
+import { join } from 'path'
 import { gogRedistPath } from 'backend/storeManagers/gog/constants'
 import { onConnectivityChange } from 'backend/online_monitor'
 
@@ -280,12 +284,7 @@ async function addToQueue(element: DMQueueElement) {
         installInfo.manifest &&
         'dependencies' in installInfo.manifest
       ) {
-        const newDependencies = installInfo.manifest.dependencies || []
-        if (newDependencies.length || !existsSync(gogRedistPath)) {
-          // Installs still download redistributables first. Updates used to
-          // do the same, which left the game sitting in Queued.
-          dependencies = newDependencies
-        }
+        dependencies = installInfo.manifest.dependencies || []
       }
     } catch (error) {
       logError(
@@ -303,11 +302,22 @@ async function addToQueue(element: DMQueueElement) {
     sameQueueItem(queued, element)
   )
 
+  const windowsGog =
+    element.params.runner === 'gog' &&
+    element.params.platformToInstall?.toLowerCase() === 'windows' &&
+    element.params.appName !== 'gog-redist'
+  // A listed dependency is not a reason to download Galaxy Common
+  // Redistributables again. Queue that sync only when it has never been
+  // stored. checkForRedistUpdates queues it later if the repository actually
+  // changed.
+  const redistMissing =
+    windowsGog && !existsSync(join(gogRedistPath, '.gogdl-redist-manifest'))
+
   if (elementIndex >= 0) {
     elements[elementIndex] = element
   } else {
-    if (dependencies) {
-      queueGogRedist(elements, element, dependencies)
+    if (redistMissing) {
+      queueGogRedist(elements, element, dependencies ?? [])
     }
     elements.push(element)
   }
@@ -351,6 +361,10 @@ async function addToQueue(element: DMQueueElement) {
     callAbortController('gog-redist')
   } else {
     startQueue()
+  }
+
+  if (windowsGog) {
+    void checkForRedistUpdates()
   }
 }
 

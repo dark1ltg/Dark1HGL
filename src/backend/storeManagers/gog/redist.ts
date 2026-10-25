@@ -3,7 +3,8 @@
 
 import path from 'path'
 import { existsSync } from 'fs'
-import { readdir, readFile } from 'fs/promises'
+import { readdir, readFile, writeFile } from 'fs/promises'
+import { assessRedistManifest, sameRedistIds } from './redist_decision'
 import { logError, logInfo, LogPrefix } from 'backend/logger'
 import {
   GOGRedistManifest,
@@ -24,76 +25,85 @@ import { gogdlConfigPath, gogRedistPath } from './constants'
 import { gamesConfigPath } from 'backend/constants/paths'
 import LogWriter from '../../logger/log_writer'
 
+let redistCheck: Promise<void> | undefined
+
 export async function checkForRedistUpdates() {
   if (!GOGUser.isLoggedIn() || !isOnline()) {
     return
   }
+  if (!redistCheck) {
+    redistCheck = runRedistCheck().finally(() => {
+      redistCheck = undefined
+    })
+  }
+  return redistCheck
+}
+
+async function runRedistCheck() {
   const manifestPath = path.join(gogRedistPath, '.gogdl-redist-manifest')
-  let shouldUpdate = false
+  const requiredIds = await getRequiredRedistList()
+  let manifest: GOGRedistManifest | undefined
   if (existsSync(manifestPath)) {
-    // Check if newer buildId is available
     try {
-      const fileData = await readFile(manifestPath, { encoding: 'utf8' })
-      const manifest: GOGRedistManifest = JSON.parse(fileData)
-
-      const requiredRedistList = await getRequiredRedistList()
-      const requiredRedist = requiredRedistList.filter((redist) => {
-        const foundRedist = manifest.depots.find(
-          (dep) => dep.dependencyId === redist
-        )
-        return foundRedist && foundRedist.executable.path.startsWith('__redist') // Filter redist that are installed into game directory
-      })
-      // Filter redist with those only
-      const installed = manifest.HGLInstalled || []
-      // Something is no longer required or new redist is needed
-      if (requiredRedist.length !== installed.length) {
-        logInfo('Updating redist, reason - different number of redist', {
-          prefix: LogPrefix.Gog
-        })
-        shouldUpdate = true
-      } else {
-        // Check if we need new redist
-        const sortedReq = requiredRedist.sort()
-        const sortedInst = installed.sort()
-
-        for (const index in sortedReq) {
-          if (sortedReq[index] !== sortedInst[index]) {
-            logInfo('Updating redist, reason - different redist required', {
-              prefix: LogPrefix.Gog
-            })
-            shouldUpdate = true
-            break
-          }
-        }
-      }
-
-      // Check if manifest itself changed
-      if (!shouldUpdate) {
-        const buildId = manifest?.build_id
-        const response = await axiosClient.get(
-          'https://content-system.gog.com/dependencies/repository?generation=2'
-        )
-        const newBuildId = response.data.build_id
-        shouldUpdate = buildId !== newBuildId
-        if (shouldUpdate) {
-          logInfo('Updating redist, reason - new buildId', {
-            prefix: LogPrefix.Gog
-          })
-        }
-      }
+      manifest = JSON.parse(await readFile(manifestPath, { encoding: 'utf8' }))
     } catch (e) {
       logError(['Failed to read gog redist manifest', e], {
         prefix: LogPrefix.Gog
       })
       return
     }
-  } else {
-    shouldUpdate = true
   }
-  if (!shouldUpdate) {
+
+  let remoteBuildId: string | undefined
+  try {
+    const response = await axiosClient.get(
+      'https://content-system.gog.com/dependencies/repository?generation=2'
+    )
+    if (typeof response.data?.build_id === 'string') {
+      remoteBuildId = response.data.build_id
+    }
+  } catch (e) {
+    logError(['Failed to check GOG redistributable repository', e], {
+      prefix: LogPrefix.Gog
+    })
+  }
+
+  const decision = assessRedistManifest(manifest, requiredIds, remoteBuildId)
+  if (!decision.update) {
+    if (manifest && !sameRedistIds(manifest.HGLInstalled, decision.installed)) {
+      await stampInstalledRedist(decision.installed)
+    }
+    logInfo('GOG redistributables are already installed', {
+      prefix: LogPrefix.Gog
+    })
     return
   }
-  pushRedistUpdateToQueue()
+
+  logInfo('Updating redist, reason - installed set or repository changed', {
+    prefix: LogPrefix.Gog
+  })
+  await pushRedistUpdateToQueue()
+}
+
+async function stampInstalledRedist(ids: string[]) {
+  const manifestPath = path.join(gogRedistPath, '.gogdl-redist-manifest')
+  if (!existsSync(manifestPath)) {
+    return
+  }
+  try {
+    const manifest: GOGRedistManifest = JSON.parse(
+      await readFile(manifestPath, { encoding: 'utf8' })
+    )
+    if (sameRedistIds(manifest.HGLInstalled, ids)) {
+      return
+    }
+    manifest.HGLInstalled = ids
+    await writeFile(manifestPath, JSON.stringify(manifest))
+  } catch (e) {
+    logError(['Failed to record installed GOG redistributables', e], {
+      prefix: LogPrefix.Gog
+    })
+  }
 }
 
 async function pushRedistUpdateToQueue() {
@@ -211,9 +221,32 @@ export async function updateRedist(redistToSync: string[]): Promise<{
         .onInstallOrUpdateOutput('updating', output)
   })
 
+  if (res.abort) {
+    return { status: 'done' }
+  }
+
   if (res.error) {
     logError(['Failed to update redist', res.error], LogPrefix.Gog)
     return { status: 'error' }
+  }
+
+  const manifestPath = path.join(gogRedistPath, '.gogdl-redist-manifest')
+  if (existsSync(manifestPath)) {
+    try {
+      const manifest: GOGRedistManifest = JSON.parse(
+        await readFile(manifestPath, { encoding: 'utf8' })
+      )
+      const decision = assessRedistManifest(
+        manifest,
+        redistToSync,
+        manifest.build_id
+      )
+      await stampInstalledRedist(decision.installed)
+    } catch (e) {
+      logError(['Failed to record installed GOG redistributables', e], {
+        prefix: LogPrefix.Gog
+      })
+    }
   }
 
   return { status: 'done' }
