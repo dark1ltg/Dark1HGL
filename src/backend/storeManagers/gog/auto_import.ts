@@ -229,7 +229,7 @@ function isPlatformSupported(platform: GogInstallPlatform) {
   return true
 }
 
-export const isActionable = (game: GOGScanResult) =>
+const isActionable = (game: GOGScanResult) =>
   game.status === 'importable' || game.status === 'moved'
 
 // One copy per game. Two copies means the user has to pick; guessing would
