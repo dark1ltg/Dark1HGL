@@ -248,14 +248,16 @@ export default class GOGGame implements Game {
     return res
   }
 
-  private defaultTmpProgress = () => ({
+  // Last sample from gogdl. Speeds often arrive on the lines after "Progress:",
+  // and a patch can print percent/ETA without a fresh speed, so this is kept
+  // across chunks and sent as soon as a Progress line arrives.
+  private reportedProgress: InstallProgress = {
     bytes: '',
     eta: '',
     percent: undefined,
-    diskSpeed: undefined,
-    downSpeed: undefined
-  })
-  private tmpProgress: InstallProgress | undefined
+    diskSpeed: 0,
+    downSpeed: 0
+  }
 
   onInstallOrUpdateOutput(
     action: 'installing' | 'updating',
@@ -263,74 +265,42 @@ export default class GOGGame implements Game {
     /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
     totalDownloadSize = -1
   ) {
-    if (!this.tmpProgress) {
-      this.tmpProgress = this.defaultTmpProgress()
+    const progress = this.reportedProgress
+    const percentMatch = data.match(/Progress: (\d+\.\d+) /)
+    const etaMatch = data.match(/ETA: (\d\d:\d\d:\d\d)/)
+    const bytesMatch = data.match(/Downloaded: (\S+) MiB/)
+    const downSpeedMatch = data.match(/Download\s+-\s+(\S+)\s+MiB/)
+    const diskSpeedMatch = data.match(/Disk\s+-\s+(\S+)\s+MiB/)
+
+    if (etaMatch?.[1]) progress.eta = etaMatch[1]
+    if (bytesMatch?.[1]) progress.bytes = `${bytesMatch[1]}MB`
+    if (downSpeedMatch?.[1] && !Number.isNaN(Number(downSpeedMatch[1]))) {
+      progress.downSpeed = Number(downSpeedMatch[1])
     }
-    const progress = this.tmpProgress
-
-    // parse log for percent
-    if (!progress.percent) {
-      const percentMatch = data.match(/Progress: (\d+\.\d+) /m)
-
-      progress.percent = !Number.isNaN(Number(percentMatch?.at(1)))
-        ? Number(percentMatch?.at(1))
-        : undefined
-    }
-
-    // parse log for eta
-    if (progress.eta === '') {
-      const etaMatch = data.match(/ETA: (\d\d:\d\d:\d\d)/m)
-      progress.eta = etaMatch && etaMatch?.length >= 2 ? etaMatch[1] : ''
+    if (diskSpeedMatch?.[1] && !Number.isNaN(Number(diskSpeedMatch[1]))) {
+      progress.diskSpeed = Number(diskSpeedMatch[1])
     }
 
-    // parse log for game download progress
-    if (progress.bytes === '') {
-      const bytesMatch = data.match(/Downloaded: (\S+) MiB/m)
-      progress.bytes =
-        bytesMatch && bytesMatch?.length >= 2 ? `${bytesMatch[1]}MB` : ''
-    }
+    if (!percentMatch?.[1]) return
+    const percent = Number(percentMatch[1])
+    if (Number.isNaN(percent)) return
+    progress.percent = percent
 
-    // parse log for download speed
-    if (!progress.downSpeed) {
-      const downSpeedMBytes = data.match(/Download\t- (\S+.) MiB/m)
-      progress.downSpeed = !Number.isNaN(Number(downSpeedMBytes?.at(1)))
-        ? Number(downSpeedMBytes?.at(1))
-        : undefined
-    }
+    logInfo(
+      [
+        `Progress for ${this.getGameInfo().title}:`,
+        `${progress.percent}%/${progress.bytes}/${progress.eta}`.trim(),
+        `Down: ${progress.downSpeed}MB/s / Disk: ${progress.diskSpeed}MB/s`
+      ],
+      LogPrefix.Gog
+    )
 
-    // parse disk write speed
-    if (!progress.diskSpeed) {
-      const diskSpeedMBytes = data.match(/Disk\t- (\S+.) MiB/m)
-      progress.diskSpeed = !Number.isNaN(Number(diskSpeedMBytes?.at(1)))
-        ? Number(diskSpeedMBytes?.at(1))
-        : undefined
-    }
-
-    // only send to frontend if all values are updated
-    if (
-      Object.values(progress).every(
-        (value) => !(value === undefined || value === '')
-      )
-    ) {
-      logInfo(
-        [
-          `Progress for ${this.getGameInfo().title}:`,
-          `${progress.percent}%/${progress.bytes}/${progress.eta}`.trim(),
-          `Down: ${progress.downSpeed}MB/s / Disk: ${progress.diskSpeed}MB/s`
-        ],
-        LogPrefix.Gog
-      )
-
-      sendProgressUpdate({
-        appName: this.id,
-        runner: 'gog',
-        status: action,
-        progress: progress
-      })
-
-      // reset
-      this.tmpProgress = this.defaultTmpProgress()
-    }
+    sendProgressUpdate({
+      appName: this.id,
+      runner: 'gog',
+      status: action,
+      progress: { ...progress }
+    })
   }
 
   async install({

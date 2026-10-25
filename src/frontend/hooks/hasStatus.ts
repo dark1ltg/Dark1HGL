@@ -1,7 +1,7 @@
 import React from 'react'
 import ContextProvider from 'frontend/state/ContextProvider'
 import { GameInfo, GameStatus, Status } from 'common/types'
-import { hasProgress } from './hasProgress'
+import { hasProgress, useProgressIsStale } from './hasProgress'
 import { useTranslation } from 'react-i18next'
 import { getStatusLabel, handleNonAvailableGames } from './constants'
 
@@ -9,6 +9,13 @@ export function hasStatus(gameInfo: GameInfo, gameSize?: string) {
   const appName = gameInfo.app_name
   const { libraryStatus, epic, gog } = React.useContext(ContextProvider)
   const [progress] = hasProgress(gameInfo.app_name, gameInfo.runner)
+  const liveStatus = libraryStatus.find(
+    (game: GameStatus) => game.appName === appName
+  )
+  const writingToDisk = useProgressIsStale(
+    progress,
+    liveStatus?.status === 'installing' || liveStatus?.status === 'updating'
+  )
   const [newGameInfo, setNewGameInfo] = React.useState<GameInfo | undefined>(
     gameInfo
   )
@@ -61,7 +68,8 @@ export function hasStatus(gameInfo: GameInfo, gameSize?: string) {
           runner,
           size: gameSize,
           statusContext,
-          percent: progress.percent
+          percent: progress.percent,
+          writingToDisk
         })
         return setGameStatus({ status, folder, label, statusContext })
       }
@@ -112,7 +120,8 @@ export function hasStatus(gameInfo: GameInfo, gameSize?: string) {
     epic.library,
     gog.library,
     is_installed,
-    progress.percent
+    progress.percent,
+    writingToDisk
   ])
 
   return gameStatus

@@ -6,8 +6,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload } from '@fortawesome/free-solid-svg-icons'
 import Box from '@mui/material/Box'
 import { getGameInfo } from 'frontend/helpers'
-import { hasProgress } from 'frontend/hooks/hasProgress'
-import { Runner } from 'common/types'
+import { hasProgress, useProgressIsStale } from 'frontend/hooks/hasProgress'
+import { DownloadManagerState, Runner } from 'common/types'
 import './index.css'
 import { useTranslation } from 'react-i18next'
 import ContextProvider from 'frontend/state/ContextProvider'
@@ -16,10 +16,19 @@ import Badge from '@mui/material/Badge'
 type Props = {
   appName: string
   runner: Runner
+  downloadState: DownloadManagerState
 }
 
-export default React.memo(function CurrentDownload({ appName, runner }: Props) {
+export default React.memo(function CurrentDownload({
+  appName,
+  runner,
+  downloadState
+}: Props) {
   const [progress] = hasProgress(appName, runner)
+  const writingToDisk = useProgressIsStale(
+    progress,
+    downloadState === 'running'
+  )
   const [gameTitle, setGameTitle] = useState('')
   const { libraryStatus } = useContext(ContextProvider)
   const { t } = useTranslation()
@@ -42,7 +51,7 @@ export default React.memo(function CurrentDownload({ appName, runner }: Props) {
   }, [appName])
 
   function getStatus() {
-    return progress.percent && progress.percent > 98
+    return (progress.percent && progress.percent > 98) || writingToDisk
       ? t('status.processing', 'Processing files, please wait')
       : t('status.installing', 'Installing')
   }

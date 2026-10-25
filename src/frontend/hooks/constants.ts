@@ -8,6 +8,7 @@ type StatusArgs = {
   statusContext?: string
   percent?: number
   size?: string
+  writingToDisk?: boolean
 }
 
 export function getStatusLabel({
@@ -16,18 +17,30 @@ export function getStatusLabel({
   t,
   runner,
   size,
-  percent
+  percent,
+  writingToDisk
 }: StatusArgs): string {
+  const roundedPercent = Math.ceil(percent || 0)
   const statusMap: Partial<Record<Status, string>> = {
     notSupportedGame: t('gamepage:status.notSupportedGame', 'Not Supported'),
     notAvailable: t('gamepage:status.gameNotAvailable', 'Game not available'),
     playing: t('gamepage:status.playing', 'Playing'),
     queued: `${t('gamepage:status.queued', 'Queued')}`,
     uninstalling: t('gamepage:status.uninstalling', 'Uninstalling'),
-    updating: `${t('gamepage:status.updating')} ${Math.ceil(percent || 0)}%`,
-    installing: `${t('gamepage:status.downloading', 'Downloading')} ${Math.ceil(
-      percent || 0
-    )}%`,
+    updating: writingToDisk
+      ? t(
+          'gamepage:status.updatingWriting',
+          'Updating Game {{percent}}% - writing to disk',
+          { percent: roundedPercent }
+        )
+      : `${t('gamepage:status.updating')} ${roundedPercent}%`,
+    installing: writingToDisk
+      ? t(
+          'gamepage:status.installingWriting',
+          'Downloading {{percent}}% - writing to disk',
+          { percent: roundedPercent }
+        )
+      : `${t('gamepage:status.downloading', 'Downloading')} ${roundedPercent}%`,
     extracting: t('gamepage:status.extracting', 'Extracting'),
     'syncing-saves': t('gamepage:status.syncingSaves', 'Syncing Saves'),
     moving: t('gamepage:gamecard.moving', 'Moving'),

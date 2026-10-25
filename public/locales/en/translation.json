@@ -433,7 +433,9 @@
             "start-time": "Started at",
             "type": "Type"
         },
-        "title": "Downloads"
+        "title": "Downloads",
+        "writing": "Writing to disk",
+        "writingHint": "Still writing files to disk. That time was only an estimate for the download."
     },
     "emptyLibrary": {
         "noGames": "Your library is empty.<br /><br />Click <4>here</4> to log in with your Epic, GOG.com, or Amazon accounts. Then, your games will show up here in the Library.<br /><br />To use games or apps from other sources, click <br /> to add them manually.",

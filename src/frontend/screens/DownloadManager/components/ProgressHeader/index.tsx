@@ -1,5 +1,5 @@
 import './index.css'
-import { hasProgress } from 'frontend/hooks/hasProgress'
+import { hasProgress, useProgressIsStale } from 'frontend/hooks/hasProgress'
 import { useEffect, useState } from 'react'
 import { AreaChart, Area, ResponsiveContainer } from 'recharts'
 import { Box, LinearProgress, Typography } from '@mui/material'
@@ -24,6 +24,7 @@ export default function ProgressHeader(props: {
   const sampleSize = 100
   const { t } = useTranslation()
   const [progress] = hasProgress(props.appName, props.runner)
+  const writingToDisk = useProgressIsStale(progress, props.state === 'running')
   const [avgSpeed, setAvgDownloadSpeed] = useState<Point[]>(
     Array<Point>(sampleSize).fill({ download: 0, disk: 0 })
   )
@@ -121,13 +122,23 @@ export default function ProgressHeader(props: {
                 value={progress.percent || 0}
               />
             </Box>
-            <Box sx={{ minWidth: 35 }}>
+            <Box sx={{ minWidth: writingToDisk ? 148 : 35 }}>
               <Typography
                 variant="subtitle1"
-                title={t('download-manager.ETA', 'Estimated Time')}
+                sx={{ whiteSpace: 'nowrap' }}
+                title={
+                  writingToDisk
+                    ? t(
+                        'download-manager.writingHint',
+                        'Still writing files to disk. That time was only an estimate for the download.'
+                      )
+                    : t('download-manager.ETA', 'Estimated Time')
+                }
               >
                 {props.state === 'running'
-                  ? (progress.eta ?? '00.00.00')
+                  ? writingToDisk
+                    ? t('download-manager.writing', 'Writing to disk')
+                    : (progress.eta ?? '00:00:00')
                   : 'Paused'}
               </Typography>
             </Box>
