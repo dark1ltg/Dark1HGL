@@ -33,7 +33,7 @@
     "prebuild": "rm -rf build",
     "build": "electron-vite build",
     "test:e2e": "pnpm run build && cross-env CI=e2e xvfb-maybe -- playwright test",
-    "release:linux": "pnpm run build && electron-builder -p always --linux deb AppImage rpm pacman tar.xz",
+    "release:linux": "pnpm run build && electron-builder -p always --linux AppImage",
     "release:mac": "pnpm run build && electron-builder -p always --mac --x64 --arm64",
     "release:win": "pnpm run build && electron-builder -p always --win portable --x64",
     "release:updateFlathub:ci": "tsc flathub/update-flathub.ts --skipLibCheck --target es2015 --moduleResolution node --module commonjs && node flathub/update-flathub.js",

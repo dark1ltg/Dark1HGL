@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   CLAAssistant:
+    if: github.repository == 'Heroic-Games-Launcher/HeroicGamesLauncher'
     runs-on: ubuntu-latest
     steps:
       - name: 'CLA Assistant'
