@@ -74,7 +74,7 @@ async function listChildDirs(dir: string): Promise<string[]> {
   }
 }
 
-export async function getMountRoots(): Promise<string[]> {
+async function getMountRoots(): Promise<string[]> {
   if (isWindows) {
     return 'CDEFGHIJKLMNOPQRSTUVWXYZ'
       .split('')
