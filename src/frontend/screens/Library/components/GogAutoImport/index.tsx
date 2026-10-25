@@ -155,7 +155,7 @@ export default function GogAutoImport() {
     setImportResult(undefined)
     const toImport = results
       .filter((game) => selected.has(game.path))
-      .map(({ appName, path }) => ({ appName, path }))
+      .map(({ appName, path, platform }) => ({ appName, path, platform }))
     setImportTotal(toImport.length)
     setImportResult(await window.api.importGogGames(toImport))
     setActivePath(undefined)

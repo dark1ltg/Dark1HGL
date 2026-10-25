@@ -3,7 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 
 const mockGetGameInfo = jest.fn()
-const mockImportGame = jest.fn()
+const mockRecordScannedGame = jest.fn()
 const mockRelink = jest.fn()
 const mockBackfill = jest.fn()
 const mockSettings: Record<string, unknown> = {}
@@ -12,7 +12,7 @@ jest.mock('backend/storeManagers', () => ({
   libraryManagerMap: {
     gog: {
       getGameInfo: (appName: string) => mockGetGameInfo(appName),
-      getGame: () => ({ importGame: mockImportGame }),
+      recordScannedGame: (...args: unknown[]) => mockRecordScannedGame(...args),
       relinkInstalledGame: (...args: unknown[]) => mockRelink(...args),
       backfillImportedGames: (...args: unknown[]) => mockBackfill(...args)
     }
@@ -22,7 +22,14 @@ jest.mock('backend/ipc', () => ({ sendFrontendMessage: jest.fn() }))
 jest.mock('backend/config', () => ({
   GlobalConfig: { get: () => ({ getSettings: () => mockSettings }) }
 }))
-jest.mock('backend/game_config', () => ({}))
+jest.mock('backend/game_config', () => ({
+  GameConfig: {
+    get: () => ({
+      getSettings: jest.fn().mockResolvedValue({}),
+      setSetting: jest.fn()
+    })
+  }
+}))
 jest.mock('backend/constants/environment', () => ({
   isLinux: true,
   isMac: false,
@@ -62,8 +69,8 @@ describe('scanForGogGames', () => {
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'heroic-gog-scan-'))
     delete mockSettings.gogAutoImportFolders
-    mockImportGame.mockReset()
-    mockImportGame.mockResolvedValue({})
+    mockRecordScannedGame.mockReset()
+    mockRecordScannedGame.mockResolvedValue(true)
     mockBackfill.mockReset()
     mockBackfill.mockResolvedValue(undefined)
     mockRelink.mockReset()
@@ -177,11 +184,11 @@ describe('scanForGogGames', () => {
     const result = await importGogGames([{ appName: '5', path: newPath }])
     expect(result.imported).toEqual([newPath])
     expect(mockRelink).toHaveBeenCalledWith('5', newPath)
-    expect(mockImportGame).not.toHaveBeenCalled()
+    expect(mockRecordScannedGame).not.toHaveBeenCalled()
     expect(mockBackfill).not.toHaveBeenCalled()
   })
 
-  it('imports one game without the per-game GOG metadata lookup', async () => {
+  it('records a scanned game without reading the install folder again', async () => {
     mockGetGameInfo.mockImplementation(() => ({
       title: 'Library 1',
       is_installed: false,
@@ -189,12 +196,26 @@ describe('scanForGogGames', () => {
     }))
 
     const gamePath = join(root, 'One')
+    const result = await importGogGames([
+      { appName: '1', path: gamePath, platform: 'linux' }
+    ])
+    expect(result.imported).toEqual([gamePath])
+    expect(mockRecordScannedGame).toHaveBeenCalledWith('1', gamePath, 'linux')
+    expect(mockBackfill).toHaveBeenCalledWith(['1'])
+  })
+
+  it('treats a folder with no platform hint as a Windows install', async () => {
+    mockGetGameInfo.mockImplementation(() => ({
+      title: 'Library 1',
+      is_installed: false,
+      install: {}
+    }))
+
+    mockSettings.defaultWinePrefixDir = join(root, 'prefixes')
+    const gamePath = join(root, 'One')
     const result = await importGogGames([{ appName: '1', path: gamePath }])
     expect(result.imported).toEqual([gamePath])
-    expect(mockImportGame).toHaveBeenCalledWith(gamePath, 'windows', {
-      lightweight: true
-    })
-    expect(mockBackfill).toHaveBeenCalledWith(['1'])
+    expect(mockRecordScannedGame).toHaveBeenCalledWith('1', gamePath, 'windows')
   })
 
   it('finds a game nested many folders down', async () => {

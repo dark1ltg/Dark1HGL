@@ -318,14 +318,30 @@ function reportProgress(progress: GOGAutoImportProgress) {
   sendFrontendMessage('gogAutoImportProgress', progress)
 }
 
+// Used only when a caller did not keep the platform the scan already found.
+function platformFromInstall(path: string): GogInstallPlatform {
+  if (path.endsWith('.app')) return 'osx'
+  if (
+    existsSync(join(path, 'gameinfo')) ||
+    (existsSync(join(path, 'start.sh')) && existsSync(join(path, 'game')))
+  ) {
+    return 'linux'
+  }
+  return 'windows'
+}
+
 async function runImport(
-  games: Array<{ appName: string; path: string }>
+  games: Array<{
+    appName: string
+    path: string
+    platform?: GogInstallPlatform
+  }>
 ): Promise<GOGBatchImportResult> {
   const result: GOGBatchImportResult = { imported: [], failed: [] }
   const importedAppNames: string[] = []
   const handled = new Set<string>()
 
-  for (const { appName, path } of games) {
+  for (const { appName, path, platform: knownPlatform } of games) {
     if (handled.has(appName)) {
       logInfo(
         `Auto-import: skipping extra copy of ${appName} at ${path}`,
@@ -355,16 +371,19 @@ async function runImport(
           phase = 'done'
         } else result.failed.push(path)
       } else {
-        const { abort, error } = await libraryManagerMap.gog
-          .getGame(appName)
-          .importGame(path, 'windows', { lightweight: true })
-        if (abort || error) {
+        const platform = knownPlatform ?? platformFromInstall(path)
+        const saved = await libraryManagerMap.gog.recordScannedGame(
+          appName,
+          path,
+          platform
+        )
+        if (!saved) {
           result.failed.push(path)
         } else {
-          const platform =
-            libraryManagerMap.gog.getGameInfo(appName)?.install.platform
           if (platform === 'windows') {
             await setDefaultWineSettings(appName, gameInfo.title)
+          } else if (platform === 'linux' && isLinux) {
+            GameConfig.get(appName).setSetting('steamRuntime', 'umu-scout')
           }
           result.imported.push(path)
           importedAppNames.push(appName)
@@ -422,7 +441,11 @@ async function runImport(
 // Manual imports wait for a scan that's already running instead of being
 // dropped, and the caller gets the result of its own request.
 export function importGogGames(
-  games: Array<{ appName: string; path: string }>
+  games: Array<{
+    appName: string
+    path: string
+    platform?: GogInstallPlatform
+  }>
 ): Promise<GOGBatchImportResult> {
   const job = importQueue.then(() => runImport(games))
   importQueue = job.then(

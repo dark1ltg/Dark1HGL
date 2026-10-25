@@ -56,6 +56,7 @@ import type {
   GOGCloudSavesLocation,
   GOGLibraryFolder,
   GOGScanResult,
+  GogInstallPlatform,
   UserData
 } from './gog'
 import type { NileLoginData, NileRegisterData, NileUserData } from './nile'
@@ -242,7 +243,11 @@ interface AsyncIPCFunctions {
   importGame: (args: ImportGameArgs) => StatusPromise
   scanForGogGames: (folders: string[]) => Promise<GOGScanResult[]>
   importGogGames: (
-    games: Array<{ appName: string; path: string }>
+    games: Array<{
+      appName: string
+      path: string
+      platform?: GogInstallPlatform
+    }>
   ) => Promise<GOGBatchImportResult>
   getGogLibraryFolders: () => GOGLibraryFolder[]
   addGogLibraryFolder: (path: string) => Promise<GOGLibraryFolder[]>

@@ -24,7 +24,8 @@ import {
   GOGCredentials,
   GOGv1Manifest,
   GOGv2Manifest,
-  GOGSessionSyncQueueItem
+  GOGSessionSyncQueueItem,
+  GogInstallPlatform
 } from 'common/types/gog'
 import { dirname, join, sep } from 'node:path'
 import { existsSync, readFileSync } from 'graceful-fs'
@@ -107,8 +108,14 @@ export default class GOGLibraryManager implements LibraryManager {
     const manifestDir = join(gogdlConfigPath, 'manifests')
 
     const manifestPath = join(manifestDir, appName)
-    const installedData = installedGames.get(appName)! // It exists for sure
-    if (existsSync(manifestPath) || installedData?.platform === 'linux') {
+    const installedData = installedGames.get(appName)
+    if (!installedData?.install_path) return
+    if (existsSync(manifestPath)) return
+    // Linux has no manifest file. A filled-in version means this pass already ran.
+    if (
+      installedData.platform === 'linux' &&
+      (installedData.version || installedData.buildId)
+    ) {
       return
     }
     // Pull the data, read info file from install dir if possible
@@ -122,9 +129,27 @@ export default class GOGLibraryManager implements LibraryManager {
 
     try {
       const importData: GOGImportData = JSON.parse(res.stdout)
+      const platform = importData.platform || installedData.platform
+      installedData.platform = platform
+      installedData.buildId = importData.buildId
+      installedData.version = importData.versionName
+      installedData.language = importData.installedLanguage
+      installedData.installedDLCs = importData.dlcs
+      installedData.installedWithDLCs = !!importData.dlcs?.length
+      installedGames.set(appName, installedData)
+      installedGamesStore.set('installed', Array.from(installedGames.values()))
+      const gameData = library.get(appName)
+      if (gameData) {
+        gameData.install = installedData
+        gameData.is_installed = true
+        library.set(appName, gameData)
+        sendFrontendMessage('pushGameToLibrary', gameData)
+      }
+      if (platform === 'linux') return
+
       const builds = await this.getBuilds(
         appName,
-        installedData.platform,
+        platform,
         credentials?.access_token
       )
       const buildItems: BuildItem[] = builds.data.items
@@ -985,12 +1010,45 @@ export default class GOGLibraryManager implements LibraryManager {
     return true
   }
 
+  // The scan already identified this install. Record it without spawning
+  // gogdl; build id, language, and the manifest are filled in afterward.
+  recordScannedGame(
+    appName: string,
+    installPath: string,
+    platform: GogInstallPlatform
+  ): Promise<boolean> {
+    const gameData = library.get(appName)
+    if (!gameData) return Promise.resolve(false)
+    return this.importGame(
+      {
+        appName,
+        buildId: '',
+        title: gameData.title,
+        tasks: [],
+        installedLanguage: '',
+        platform,
+        versionName: '',
+        dlcs: []
+      },
+      installPath,
+      { lightweight: true }
+    )
+  }
+
   // Manifests and the shared redistributable check are deferred so a batch
   // import can record each game without waiting on GOG between them.
   async backfillImportedGames(appNames: string[]) {
     const credentials = await GOGUser.getCredentials()
     for (const appName of appNames) {
       await this.createMissingGogdlManifest(appName, credentials)
+      try {
+        await this.getGame(appName).addShortcuts()
+      } catch (error) {
+        logError(
+          [`Could not add shortcuts for ${appName}`, error],
+          LogPrefix.Gog
+        )
+      }
     }
     await checkForRedistUpdates()
   }
