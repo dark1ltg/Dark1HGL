@@ -8,6 +8,7 @@ on:
 
 jobs:
   update-aur:
+    if: github.repository == 'Heroic-Games-Launcher/HeroicGamesLauncher'
     runs-on: ubuntu-latest
 
     container:

@@ -44,6 +44,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Runners for private repositories have much less disk space, so drop
+      # everything the Flatpak build no longer needs (the app is now archived
+      # in dist/, and /__t is the host's unused tool cache)
+      - name: Free disk space
+        run: |
+          df -h .
+          rm -rf node_modules build dist/*-unpacked /__t/CodeQL /__t/go /__t/PyPy /__t/Python /__t/Ruby /__t/Java_*
+          df -h .
       - name: Build Flatpak
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:

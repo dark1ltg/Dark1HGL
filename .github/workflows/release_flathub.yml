@@ -25,6 +25,7 @@ env:
 
 jobs:
   draft-releases:
+    if: github.repository == 'Heroic-Games-Launcher/HeroicGamesLauncher'
     runs-on: ubuntu-latest
     steps:
       - name: echo ref name.

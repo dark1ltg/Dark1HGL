@@ -12,6 +12,8 @@ env:
   SIGNPATH_POLICY_SLUG: 'release-signing'
   SIGNPATH_ARTIFACT_CONFIGURATION_SLUG: zipped-pe-files
   SIGNPATH_INSTALLER_CONFIGURATION_SLUG: zip-Installers
+  # Forks without a SignPath account still get (unsigned) installers
+  HAS_SIGNPATH: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
 
 jobs:
   draft-release:
@@ -24,6 +26,7 @@ jobs:
       - name: Package unpacked app
         run: pnpm exec electron-builder --win --x64 --arm64 --dir
       - name: Upload unsigned binaries
+        if: env.HAS_SIGNPATH == 'true'
         id: upload-unsigned-binaries
         uses: actions/upload-artifact@v4
         with:
@@ -33,6 +36,7 @@ jobs:
             dist/win-arm64-unpacked/Heroic.exe
           retention-days: 1
       - name: Sign binaries
+        if: env.HAS_SIGNPATH == 'true'
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -45,6 +49,7 @@ jobs:
           wait-for-completion-timeout-in-seconds: 1800
           output-artifact-directory: signed-binaries
       - name: Restore signed binaries
+        if: env.HAS_SIGNPATH == 'true'
         run: |
           robocopy signed-binaries dist /E /IS /IT
           if ($LASTEXITCODE -ge 8) { exit 1 } else { exit 0 }
@@ -57,6 +62,7 @@ jobs:
       - name: Save arm64 update info
         run: Move-Item dist/latest.yml dist/latest-arm64.yml
       - name: Upload unsigned installers
+        if: env.HAS_SIGNPATH == 'true'
         id: upload-unsigned-installers
         uses: actions/upload-artifact@v4
         with:
@@ -64,6 +70,7 @@ jobs:
           path: dist/*.exe
           retention-days: 1
       - name: Sign installers
+        if: env.HAS_SIGNPATH == 'true'
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -74,9 +81,10 @@ jobs:
           github-artifact-id: ${{ steps.upload-unsigned-installers.outputs.artifact-id }}
           wait-for-completion: true
           wait-for-completion-timeout-in-seconds: 1800
-          github-token: ${{ secrets.GH_TOKEN }}
+          github-token: ${{ secrets.GH_TOKEN || secrets.WORKFLOW_TOKEN }}
           output-artifact-directory: signed-installers
       - name: Restore signed installers
+        if: env.HAS_SIGNPATH == 'true'
         run: |
           robocopy signed-installers dist /IS /IT
           if ($LASTEXITCODE -ge 8) { exit 1 } else { exit 0 }
@@ -93,7 +101,7 @@ jobs:
       - name: Publish to draft release
         if: startsWith(github.ref, 'refs/tags/')
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.WORKFLOW_TOKEN }}
         run: |
           gh release view $env:GITHUB_REF_NAME
           if ($LASTEXITCODE -ne 0) {
