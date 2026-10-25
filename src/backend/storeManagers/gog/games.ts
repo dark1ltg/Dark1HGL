@@ -20,6 +20,7 @@ import {
   GameInfo,
   GameSettings,
   ExecResult,
+  InstallPlatform,
   InstallArgs,
   InstalledInfo,
   InstallProgress,
@@ -200,7 +201,11 @@ export default class GOGGame implements Game {
     )
   }
 
-  async importGame(folderPath: string): Promise<ExecResult> {
+  async importGame(
+    folderPath: string,
+    _platform?: InstallPlatform,
+    options?: { lightweight?: boolean }
+  ): Promise<ExecResult> {
     const res = await libraryManagerMap['gog'].runRunnerCommand(
       ['import', folderPath],
       {
@@ -219,10 +224,17 @@ export default class GOGGame implements Game {
     }
 
     try {
-      await libraryManagerMap['gog'].importGame(
+      const saved = await libraryManagerMap['gog'].importGame(
         JSON.parse(res.stdout),
-        folderPath
+        folderPath,
+        options
       )
+      if (!saved) {
+        return {
+          ...res,
+          error: `Could not record imported game ${this.id}`
+        }
+      }
       this.addShortcuts()
 
       if (isLinux && this.isNative()) {

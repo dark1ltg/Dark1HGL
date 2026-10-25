@@ -10,12 +10,10 @@ import { isLinux, isMac, isWindows } from 'backend/constants/environment'
 import { gamesConfigPath } from 'backend/constants/paths'
 import { notify } from 'backend/dialog/dialog'
 import { logError, logInfo, LogPrefix } from 'backend/logger'
-import {
-  removeSpecialcharacters,
-  sendGameStatusUpdate,
-  writeConfig
-} from 'backend/utils'
+import { sendFrontendMessage } from 'backend/ipc'
+import { removeSpecialcharacters, writeConfig } from 'backend/utils'
 import type {
+  GOGAutoImportProgress,
   GOGBatchImportResult,
   GOGGameDotInfoFile,
   GOGScanResult,
@@ -316,10 +314,15 @@ async function setDefaultWineSettings(appName: string, title: string) {
 
 let importQueue: Promise<void> = Promise.resolve()
 
+function reportProgress(progress: GOGAutoImportProgress) {
+  sendFrontendMessage('gogAutoImportProgress', progress)
+}
+
 async function runImport(
   games: Array<{ appName: string; path: string }>
 ): Promise<GOGBatchImportResult> {
   const result: GOGBatchImportResult = { imported: [], failed: [] }
+  const importedAppNames: string[] = []
   const handled = new Set<string>()
 
   for (const { appName, path } of games) {
@@ -339,19 +342,22 @@ async function runImport(
       continue
     }
 
-    sendGameStatusUpdate({ appName, runner: 'gog', status: 'importing' })
+    reportProgress({ appName, path, phase: 'active' })
+    let phase: GOGAutoImportProgress['phase'] = 'failed'
     try {
       if (isRelink) {
         const relinked = libraryManagerMap.gog.relinkInstalledGame(
           appName,
           path
         )
-        if (relinked) result.imported.push(path)
-        else result.failed.push(path)
+        if (relinked) {
+          result.imported.push(path)
+          phase = 'done'
+        } else result.failed.push(path)
       } else {
         const { abort, error } = await libraryManagerMap.gog
           .getGame(appName)
-          .importGame(path)
+          .importGame(path, 'windows', { lightweight: true })
         if (abort || error) {
           result.failed.push(path)
         } else {
@@ -361,6 +367,8 @@ async function runImport(
             await setDefaultWineSettings(appName, gameInfo.title)
           }
           result.imported.push(path)
+          importedAppNames.push(appName)
+          phase = 'done'
         }
       }
     } catch (error) {
@@ -370,7 +378,21 @@ async function runImport(
       )
       result.failed.push(path)
     }
-    sendGameStatusUpdate({ appName, runner: 'gog', status: 'done' })
+    reportProgress({ appName, path, phase })
+  }
+
+  if (importedAppNames.length) {
+    void libraryManagerMap.gog
+      .backfillImportedGames(importedAppNames)
+      .catch((error: unknown) => {
+        logError(
+          [
+            'Auto-import: could not finish manifest and redistributable setup',
+            error
+          ],
+          LogPrefix.Gog
+        )
+      })
   }
 
   logInfo(

@@ -16,13 +16,11 @@ import {
   DialogHeader
 } from 'frontend/components/UI/Dialog'
 import { ToggleSwitch } from 'frontend/components/UI'
-import ContextProvider from 'frontend/state/ContextProvider'
 import LibraryContext from '../../LibraryContext'
 import type {
   GOGBatchImportResult,
   GOGLibraryFolder,
-  GOGScanResult,
-  GOGScanStatus
+  GOGScanResult
 } from 'common/types/gog'
 import './index.css'
 
@@ -32,7 +30,6 @@ const isActionable = (game: GOGScanResult) =>
 export default function GogAutoImport() {
   const { t } = useTranslation()
   const { setShowGogAutoImport } = useContext(LibraryContext)
-  const { libraryStatus } = useContext(ContextProvider)
 
   const [folders, setFolders] = useState<GOGLibraryFolder[]>([])
   const [autoImport, setAutoImport] = useState(false)
@@ -40,6 +37,7 @@ export default function GogAutoImport() {
   const [results, setResults] = useState<GOGScanResult[] | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [importing, setImporting] = useState(false)
+  const [activePath, setActivePath] = useState<string>()
   const [importResult, setImportResult] = useState<GOGBatchImportResult>()
 
   useEffect(() => {
@@ -59,6 +57,38 @@ export default function GogAutoImport() {
       clearInterval(timer)
     }
   }, [])
+
+  useEffect(
+    () =>
+      window.api.handleGogAutoImportProgress((_event, progress) => {
+        if (progress.phase === 'active') {
+          setActivePath(progress.path)
+          return
+        }
+        setActivePath((current) =>
+          current === progress.path ? undefined : current
+        )
+        setImportResult((current) => {
+          const imported = current?.imported ?? []
+          const failed = current?.failed ?? []
+          if (progress.phase === 'done') {
+            return {
+              imported: imported.includes(progress.path)
+                ? imported
+                : [...imported, progress.path],
+              failed
+            }
+          }
+          return {
+            imported,
+            failed: failed.includes(progress.path)
+              ? failed
+              : [...failed, progress.path]
+          }
+        })
+      }),
+    []
+  )
 
   const close = () => setShowGogAutoImport(false)
 
@@ -119,10 +149,13 @@ export default function GogAutoImport() {
   const importSelected = async () => {
     if (!results) return
     setImporting(true)
+    setActivePath(undefined)
+    setImportResult(undefined)
     const toImport = results
       .filter((game) => selected.has(game.path))
       .map(({ appName, path }) => ({ appName, path }))
     setImportResult(await window.api.importGogGames(toImport))
+    setActivePath(undefined)
     setSelected(new Set())
     setImporting(false)
   }
@@ -132,7 +165,11 @@ export default function GogAutoImport() {
     [results]
   )
 
-  const statusLabel = (status: GOGScanStatus) => {
+  const statusLabel = (game: GOGScanResult) => {
+    if (activePath === game.path) {
+      return t('gog-auto-import.status.importing', 'Importing…')
+    }
+    const status = game.status
     switch (status) {
       case 'installed':
         return t('gog-auto-import.status.installed', 'Already in Heroic')
@@ -151,11 +188,7 @@ export default function GogAutoImport() {
   }
 
   const rowState = (game: GOGScanResult) => {
-    const isImporting = libraryStatus.some(
-      (status) =>
-        status.appName === game.appName && status.status === 'importing'
-    )
-    if (isImporting) {
+    if (activePath === game.path) {
       return <FontAwesomeIcon className="fa-spin-pulse" icon={faSpinner} />
     }
     if (importResult?.imported.includes(game.path)) {
@@ -241,11 +274,18 @@ export default function GogAutoImport() {
               )}
             </h6>
             {results.map((game) => (
-              <div className="GogAutoImport__row" key={game.path}>
+              <div
+                className={
+                  activePath === game.path
+                    ? 'GogAutoImport__row GogAutoImport__row--active'
+                    : 'GogAutoImport__row'
+                }
+                key={game.path}
+              >
                 <span className="GogAutoImport__state">{rowState(game)}</span>
                 <span className="GogAutoImport__title">{game.title}</span>
                 <span className="GogAutoImport__status">
-                  {statusLabel(game.status)}
+                  {statusLabel(game)}
                 </span>
                 <span className="GogAutoImport__path" title={game.path}>
                   {game.path}
@@ -273,12 +313,11 @@ export default function GogAutoImport() {
           onClick={() => void importSelected()}
           disabled={!selected.size || scanning || importing}
         >
-          {importing && (
-            <FontAwesomeIcon className="fa-spin-pulse" icon={faSpinner} />
-          )}{' '}
-          {t('gog-auto-import.import', 'Import {{count}} game(s)', {
-            count: selected.size
-          })}
+          {importing
+            ? t('gog-auto-import.importing', 'Importing…')
+            : t('gog-auto-import.import', 'Import {{count}} game(s)', {
+                count: selected.size
+              })}
         </button>
       </DialogFooter>
     </Dialog>

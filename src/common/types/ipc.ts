@@ -51,6 +51,7 @@ import type {
   GogDealsRegion
 } from './discounts'
 import type {
+  GOGAutoImportProgress,
   GOGBatchImportResult,
   GOGCloudSavesLocation,
   GOGLibraryFolder,
@@ -412,6 +413,7 @@ interface FrontendMessages {
   installGame: (appName: string, runner: Runner) => void
   recentGamesChanged: (newRecentGames: RecentGame[]) => void
   pushGameToLibrary: (info: GameInfo) => void
+  gogAutoImportProgress: (progress: GOGAutoImportProgress) => void
   progressOfWinetricks: (payload: {
     messages: string[]
     installingComponent: string

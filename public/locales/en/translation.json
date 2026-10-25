@@ -477,6 +477,7 @@
         "description": "Add the folders or drives where your GOG games are installed. Heroic scans everything inside them and imports every game it finds that is in your GOG account. Like Steam library folders, they are remembered even on external drives.",
         "disconnected": "Drive not connected",
         "found": "Found {{total}} game(s), {{importable}} to import or re-link",
+        "importing": "Importing…",
         "import_one": "Import {{count}} game(s)",
         "import_other": "Import {{count}} game(s)",
         "remove-folder": "Remove folder",
@@ -484,6 +485,7 @@
         "select-folder": "Select a folder with games",
         "status": {
             "importable": "Ready to import",
+            "importing": "Importing…",
             "installed": "Already in Heroic",
             "moved": "Moved, will be re-linked",
             "not-owned": "Not in your GOG account",

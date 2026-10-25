@@ -5,6 +5,7 @@ import { join } from 'path'
 const mockGetGameInfo = jest.fn()
 const mockImportGame = jest.fn()
 const mockRelink = jest.fn()
+const mockBackfill = jest.fn()
 const mockSettings: Record<string, unknown> = {}
 
 jest.mock('backend/storeManagers', () => ({
@@ -12,10 +13,12 @@ jest.mock('backend/storeManagers', () => ({
     gog: {
       getGameInfo: (appName: string) => mockGetGameInfo(appName),
       getGame: () => ({ importGame: mockImportGame }),
-      relinkInstalledGame: (...args: unknown[]) => mockRelink(...args)
+      relinkInstalledGame: (...args: unknown[]) => mockRelink(...args),
+      backfillImportedGames: (...args: unknown[]) => mockBackfill(...args)
     }
   }
 }))
+jest.mock('backend/ipc', () => ({ sendFrontendMessage: jest.fn() }))
 jest.mock('backend/config', () => ({
   GlobalConfig: { get: () => ({ getSettings: () => mockSettings }) }
 }))
@@ -36,7 +39,6 @@ jest.mock('backend/logger', () => ({
 }))
 jest.mock('backend/utils', () => ({
   removeSpecialcharacters: (s: string) => s,
-  sendGameStatusUpdate: jest.fn(),
   writeConfig: jest.fn()
 }))
 
@@ -61,6 +63,9 @@ describe('scanForGogGames', () => {
     root = mkdtempSync(join(tmpdir(), 'heroic-gog-scan-'))
     delete mockSettings.gogAutoImportFolders
     mockImportGame.mockReset()
+    mockImportGame.mockResolvedValue({})
+    mockBackfill.mockReset()
+    mockBackfill.mockResolvedValue(undefined)
     mockRelink.mockReset()
     mockRelink.mockReturnValue(true)
     mockGetGameInfo.mockImplementation((appName: string) => {
@@ -173,6 +178,23 @@ describe('scanForGogGames', () => {
     expect(result.imported).toEqual([newPath])
     expect(mockRelink).toHaveBeenCalledWith('5', newPath)
     expect(mockImportGame).not.toHaveBeenCalled()
+    expect(mockBackfill).not.toHaveBeenCalled()
+  })
+
+  it('imports one game without the per-game GOG metadata lookup', async () => {
+    mockGetGameInfo.mockImplementation(() => ({
+      title: 'Library 1',
+      is_installed: false,
+      install: {}
+    }))
+
+    const gamePath = join(root, 'One')
+    const result = await importGogGames([{ appName: '1', path: gamePath }])
+    expect(result.imported).toEqual([gamePath])
+    expect(mockImportGame).toHaveBeenCalledWith(gamePath, 'windows', {
+      lightweight: true
+    })
+    expect(mockBackfill).toHaveBeenCalledWith(['1'])
   })
 
   it('finds a game nested many folders down', async () => {

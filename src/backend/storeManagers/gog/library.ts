@@ -943,18 +943,26 @@ export default class GOGLibraryManager implements LibraryManager {
     installedGamesStore.set('installed', installedArray)
   }
 
-  async importGame(data: GOGImportData, executablePath: string) {
-    const gameInfo = await this.getInstallInfo(data.appName)
+  async importGame(
+    data: GOGImportData,
+    executablePath: string,
+    options?: { lightweight?: boolean }
+  ): Promise<boolean> {
+    const gameData = library.get(data.appName)
+    if (!gameData) return false
 
-    if (!gameInfo) {
-      return
+    let installSize = ''
+    if (!options?.lightweight) {
+      const gameInfo = await this.getInstallInfo(data.appName)
+      if (!gameInfo) return false
+      installSize = getFileSize(gameInfo.manifest?.disk_size)
     }
 
     const installInfo: InstalledInfo = {
       appName: data.appName,
       install_path: executablePath,
       executable: executablePath,
-      install_size: getFileSize(gameInfo.manifest?.disk_size),
+      install_size: installSize,
       is_dlc: false,
       version: data.versionName,
       platform: data.platform,
@@ -964,15 +972,27 @@ export default class GOGLibraryManager implements LibraryManager {
       installedWithDLCs: !!data.dlcs.length
     }
     installedGames.set(data.appName, installInfo)
-    const gameData = library.get(data.appName)!
     gameData.install = installInfo
     gameData.is_installed = true
     library.set(data.appName, gameData)
     installedGamesStore.set('installed', Array.from(installedGames.values()))
     this.refreshInstalled()
-    await this.createMissingGogdlManifest(data.appName)
-    await checkForRedistUpdates()
+    if (!options?.lightweight) {
+      await this.createMissingGogdlManifest(data.appName)
+      await checkForRedistUpdates()
+    }
     sendFrontendMessage('pushGameToLibrary', gameData)
+    return true
+  }
+
+  // Manifests and the shared redistributable check are deferred so a batch
+  // import can record each game without waiting on GOG between them.
+  async backfillImportedGames(appNames: string[]) {
+    const credentials = await GOGUser.getCredentials()
+    for (const appName of appNames) {
+      await this.createMissingGogdlManifest(appName, credentials)
+    }
+    await checkForRedistUpdates()
   }
 
   // This checks for updates of Windows and Mac titles
