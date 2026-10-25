@@ -43,10 +43,21 @@ export default function GogAutoImport() {
   const [importResult, setImportResult] = useState<GOGBatchImportResult>()
 
   useEffect(() => {
-    void window.api.getGogLibraryFolders().then(setFolders)
+    let cancelled = false
+    const refreshFolders = () => {
+      void window.api.getGogLibraryFolders().then((next) => {
+        if (!cancelled) setFolders(next)
+      })
+    }
+    refreshFolders()
+    const timer = setInterval(refreshFolders, 3000)
     void window.api.requestAppSettings().then((settings) => {
-      setAutoImport(!!settings.gogAutoImportEnabled)
+      if (!cancelled) setAutoImport(!!settings.gogAutoImportEnabled)
     })
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
   }, [])
 
   const close = () => setShowGogAutoImport(false)
@@ -109,7 +120,7 @@ export default function GogAutoImport() {
     if (!results) return
     setImporting(true)
     const toImport = results
-      .filter((game) => selected.has(game.appName))
+      .filter((game) => selected.has(game.path))
       .map(({ appName, path }) => ({ appName, path }))
     setImportResult(await window.api.importGogGames(toImport))
     setSelected(new Set())
@@ -173,7 +184,7 @@ export default function GogAutoImport() {
         <p className="GogAutoImport__hint">
           {t(
             'gog-auto-import.description',
-            'Add the folders or drives where your GOG games are installed. Heroic scans them (up to 4 levels deep) and imports every game it finds that is in your GOG account. Like Steam library folders, they are remembered even on external drives.'
+            'Add the folders or drives where your GOG games are installed. Heroic scans everything inside them and imports every game it finds that is in your GOG account. Like Steam library folders, they are remembered even on external drives.'
           )}
         </p>
 

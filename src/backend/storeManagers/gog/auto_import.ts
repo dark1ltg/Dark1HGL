@@ -1,6 +1,6 @@
 import { Dirent, existsSync } from 'graceful-fs'
 import { readdir, readFile } from 'fs/promises'
-import { basename, join, sep } from 'path'
+import { basename, dirname, join, parse, sep } from 'path'
 import { t } from 'i18next'
 
 import { libraryManagerMap } from 'backend/storeManagers'
@@ -22,9 +22,8 @@ import type {
   GogInstallPlatform
 } from 'common/types/gog'
 
-// Deep enough for layouts like <drive>/Games/GOG/<Game>, shallow enough to
-// keep scanning a multi-terabyte drive fast.
-const MAX_SCAN_DEPTH = 4
+// Safety stop for a pathological tree. Real game folders are far shallower.
+const MAX_SCAN_DEPTH = 32
 
 const SKIPPED_DIRECTORIES = new Set([
   '$recycle.bin',
@@ -169,6 +168,35 @@ async function walk(
   }
 }
 
+// Children of these directories are drives or mount points. If the nearest
+// folder that still exists is one of them, the game's drive is unplugged.
+function isMountParent(dir: string) {
+  if (
+    dir === '/' ||
+    dir === '/mnt' ||
+    dir === '/media' ||
+    dir === '/run/media' ||
+    dir === '/Volumes'
+  ) {
+    return true
+  }
+  return /^\/media\/[^/]+$/.test(dir) || /^\/run\/media\/[^/]+$/.test(dir)
+}
+
+function volumeIsPresent(target: string) {
+  if (isWindows) {
+    const root = parse(target).root
+    return !!root && existsSync(root)
+  }
+  let current = target
+  for (;;) {
+    const parent = dirname(current)
+    if (parent === current) return false
+    if (existsSync(parent)) return !isMountParent(parent)
+    current = parent
+  }
+}
+
 function isInside(root: string, target: string) {
   if (target === root) return true
   const prefix = root.endsWith(sep) ? root : root + sep
@@ -190,6 +218,8 @@ function needsRelink(installPath: string | undefined, foundPath: string) {
   if (!installPath || installPath === foundPath || existsSync(installPath)) {
     return false
   }
+  // The drive that held this game is gone. Another copy must not take its place.
+  if (!volumeIsPresent(installPath)) return false
   return !offlineLibraryRoots().some((root) => isInside(root, installPath))
 }
 

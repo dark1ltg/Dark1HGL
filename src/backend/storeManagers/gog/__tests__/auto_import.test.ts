@@ -175,8 +175,28 @@ describe('scanForGogGames', () => {
     expect(mockImportGame).not.toHaveBeenCalled()
   })
 
-  it('does not scan deeper than the depth limit', async () => {
-    writeInfo(join(root, 'a', 'b', 'c', 'd', 'e', 'Deep'), '1', '1')
+  it('finds a game nested many folders down', async () => {
+    writeInfo(join(root, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'Deep'), '1', '1')
+    const [found] = await scanForGogGames([root])
+    expect(found?.appName).toBe('1')
+    expect(found?.status).toBe('importable')
+  })
+
+  it('does not retarget a game whose drive is unplugged', async () => {
+    writeInfo(join(root, 'OtherCopy'), '7', '7')
+    mockGetGameInfo.mockImplementation(() => ({
+      title: 'Library 7',
+      is_installed: true,
+      install: { install_path: '/no-such-heroic-drive/Games/Seven' }
+    }))
+
+    const [found] = await scanForGogGames([root])
+    expect(found.status).toBe('installed')
+  })
+
+  it('does not scan a pathologically deep tree', async () => {
+    const parts = Array.from({ length: 40 }, (_, index) => `d${index}`)
+    writeInfo(join(root, ...parts), '1', '1')
     expect(await scanForGogGames([root])).toHaveLength(0)
   })
 
