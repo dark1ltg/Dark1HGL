@@ -469,6 +469,28 @@
     },
     "globalSettings": "Global Settings",
     "GOG": "GOG",
+    "gog-auto-import": {
+        "add-folder": "Add folder",
+        "automatic": "Import games automatically when Heroic starts or a drive with a library folder is connected",
+        "button": "Import GOG Games",
+        "connected": "Connected",
+        "description": "Add the folders or drives where your GOG games are installed. Heroic scans them (up to 4 levels deep) and imports every game it finds that is in your GOG account. Like Steam library folders, they are remembered even on external drives.",
+        "disconnected": "Drive not connected",
+        "found": "Found {{total}} game(s), {{importable}} to import or re-link",
+        "import_one": "Import {{count}} game(s)",
+        "import_other": "Import {{count}} game(s)",
+        "remove-folder": "Remove folder",
+        "scan": "Scan",
+        "select-folder": "Select a folder with games",
+        "status": {
+            "importable": "Ready to import",
+            "installed": "Already in Heroic",
+            "moved": "Moved, will be re-linked",
+            "not-owned": "Not in your GOG account",
+            "unsupported": "Not supported on this OS"
+        },
+        "title": "Import installed GOG games"
+    },
     "gog-store": "GOG Store",
     "header": {
         "categories": "Categories",
@@ -662,6 +684,11 @@
                 }
             },
             "reparing": "Finished Repairing"
+        },
+        "gogAutoImport": {
+            "summary": "{{imported}} game(s) imported",
+            "summaryWithFailures": "{{imported}} game(s) imported, {{failed}} failed",
+            "title": "GOG auto-import"
         },
         "import": {
             "failed": "Importing Failed"

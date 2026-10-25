@@ -53,6 +53,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { unzipSync } from 'node:zlib'
 import { readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { checkForRedistUpdates } from './redist'
+import { startLibraryFolderWatcher } from './library_folders'
 import { runGogdlCommandStub } from './e2eMock'
 import { gogdlConfigPath } from './constants'
 import { userDataPath } from 'backend/constants/paths'
@@ -469,6 +470,7 @@ export default class GOGLibraryManager implements LibraryManager {
     library.set('gog-redist', redistGameInfo)
 
     if (!isOnline()) {
+      startLibraryFolderWatcher()
       return this.defaultExecResult
     }
 
@@ -599,6 +601,8 @@ export default class GOGLibraryManager implements LibraryManager {
     })
 
     logInfo('Saved games data', LogPrefix.Gog)
+
+    startLibraryFolderWatcher()
 
     return this.defaultExecResult
   }
@@ -871,6 +875,10 @@ export default class GOGLibraryManager implements LibraryManager {
       }
       installedGames.set(value.appName, value)
     })
+  }
+
+  getInstalledGames(): InstalledInfo[] {
+    return Array.from(installedGames.values())
   }
 
   async changeGameInstallPath(appName: string, newInstallPath: string) {

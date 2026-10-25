@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import ActionIcons from 'frontend/components/UI/ActionIcons'
 import { GameInfo } from 'common/types'
 import LibraryContext from '../../LibraryContext'
+import ContextProvider from 'frontend/state/ContextProvider'
 import './index.css'
 import AddGameButton from '../AddGameButton'
 
@@ -12,7 +13,8 @@ type Props = {
 
 export default React.memo(function LibraryHeader({ list }: Props) {
   const { t } = useTranslation()
-  const { showFavourites } = useContext(LibraryContext)
+  const { showFavourites, setShowGogAutoImport } = useContext(LibraryContext)
+  const { gog } = useContext(ContextProvider)
 
   const numberOfGames = useMemo(() => {
     if (!list) {
@@ -36,6 +38,14 @@ export default React.memo(function LibraryHeader({ list }: Props) {
             : t('title.allGames', 'All Games')}
           <span className="numberOfgames">{numberOfGames}</span>
           <AddGameButton data-tour="library-add-game" />
+          {gog.username && (
+            <button
+              className="sideloadGameButton"
+              onClick={() => setShowGogAutoImport(true)}
+            >
+              {t('gog-auto-import.button', 'Import GOG Games')}
+            </button>
+          )}
         </span>
         <ActionIcons />
       </div>

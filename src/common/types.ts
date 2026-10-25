@@ -99,6 +99,8 @@ export interface AppSettings extends GameSettings {
   altNileBin: string
   autoUpdateGames: boolean
   checkForUpdatesOnStartup: boolean
+  gogAutoImportFolders?: string[]
+  gogAutoImportEnabled?: boolean
   checkUpdatesInterval: number
   customCSS: string
   customThemesPath: string
