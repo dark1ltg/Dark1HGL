@@ -68,6 +68,14 @@ import { statSync } from 'fs'
 const library: Map<string, GameInfo> = new Map()
 const installedGames: Map<string, InstalledInfo> = new Map()
 
+function responseEtag(etag: unknown) {
+  if (typeof etag === 'string' && etag) return etag
+  if (Array.isArray(etag) && typeof etag[0] === 'string' && etag[0]) {
+    return etag[0]
+  }
+  return
+}
+
 export default class GOGLibraryManager implements LibraryManager {
   private readonly gameCache: Map<string, GOGGame> = new Map()
 
@@ -110,7 +118,12 @@ export default class GOGLibraryManager implements LibraryManager {
     const manifestPath = join(manifestDir, appName)
     const installedData = installedGames.get(appName)
     if (!installedData?.install_path) return
-    if (existsSync(manifestPath)) return
+    // The manifest is already on disk. Still record the build checksum if this
+    // install was imported before that checksum was saved.
+    if (existsSync(manifestPath)) {
+      await this.rememberInstalledBuildEtag(appName, installedData, credentials)
+      return
+    }
     // Linux has no manifest file. A filled-in version means this pass already ran.
     if (
       installedData.platform === 'linux' &&
@@ -172,6 +185,22 @@ export default class GOGLibraryManager implements LibraryManager {
       const response = await axiosClient.get(url.url, {
         responseType: 'arraybuffer'
       })
+      // Same header the update check sends back as If-None-Match. Without it,
+      // every imported game is reported as a new version.
+      const etag = responseEtag(response.headers.etag)
+      if (etag) {
+        installedData.versionEtag = etag
+        installedGames.set(appName, installedData)
+        installedGamesStore.set(
+          'installed',
+          Array.from(installedGames.values())
+        )
+        const updatedGame = library.get(appName)
+        if (updatedGame) {
+          updatedGame.install = installedData
+          library.set(appName, updatedGame)
+        }
+      }
       let manifestDataRaw = response.data.toString()
       if (currentBuild.generation === 2) {
         manifestDataRaw = unzipSync(response.data)
@@ -188,6 +217,63 @@ export default class GOGLibraryManager implements LibraryManager {
     } catch (e) {
       logError([`Unable to get data of ${appName}:`, e], LogPrefix.Gog)
       return
+    }
+  }
+
+  // The update check compares this checksum to GOG's current build. It has to
+  // be the checksum of the build that is installed, not the newest one.
+  private async rememberInstalledBuildEtag(
+    appName: string,
+    installedData: InstalledInfo,
+    credentials?: GOGCredentials
+  ) {
+    if (
+      installedData.platform === 'linux' ||
+      installedData.versionEtag ||
+      !installedData.buildId
+    ) {
+      return
+    }
+
+    try {
+      const builds = await this.getBuilds(
+        appName,
+        installedData.platform,
+        credentials?.access_token
+      )
+      const buildItems: BuildItem[] = builds.data.items
+      const currentBuild = buildItems.find(
+        (item) => item.build_id === installedData.buildId
+      )
+      const url = currentBuild?.urls?.[0]?.url
+      if (!url) return
+
+      const response = await axiosClient.get(url, { responseType: 'stream' })
+      const etag = responseEtag(response.headers.etag)
+      const body: unknown = response.data
+      if (
+        body &&
+        typeof body === 'object' &&
+        'destroy' in body &&
+        typeof body.destroy === 'function'
+      ) {
+        body.destroy()
+      }
+      if (!etag) return
+
+      installedData.versionEtag = etag
+      installedGames.set(appName, installedData)
+      installedGamesStore.set('installed', Array.from(installedGames.values()))
+      const gameData = library.get(appName)
+      if (gameData) {
+        gameData.install = installedData
+        library.set(appName, gameData)
+      }
+    } catch (error) {
+      logError(
+        [`Could not record the installed build checksum for ${appName}`, error],
+        LogPrefix.Gog
+      )
     }
   }
 
@@ -1076,12 +1162,19 @@ export default class GOGLibraryManager implements LibraryManager {
       }
       // use different check for linux games
       if (game.platform === 'linux') {
+        // An import records the version in the background. Until then there is
+        // nothing to compare, and a missing version is not a new version.
+        if (!game.version) continue
         if (
           !(await this.checkForLinuxInstallerUpdate(game.appName, game.version))
         )
           updateable.push(game.appName)
         continue
       }
+      // Windows and macOS updates are a checksum of the installed build.
+      // Import used to leave this empty, and the check treats "no checksum"
+      // as "GOG has something newer".
+      if (!game.versionEtag) continue
       const hasUpdate = await this.checkForGameUpdate(
         game.appName,
         game.platform,
