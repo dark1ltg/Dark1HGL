@@ -1,4 +1,4 @@
-name: Build Heroic AppImages, upload artifacts
+name: Build Heroic AppImage, upload artifact
 permissions:
   contents: read
 
@@ -21,20 +21,12 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/install-deps
       - name: Build AppImage version
-        run: pnpm dist:linux AppImage --x64 --arm64 --publish=never
+        run: pnpm dist:linux AppImage --x64 --publish=never
       - name: Upload AppImage x64
         uses: actions/upload-artifact@v6
         with:
           name: linux-AppImage-x64
           path: dist/Heroic*x86_64.AppImage
-          retention-days: 14
-          if-no-files-found: error
-          compression-level: 3
-      - name: Upload AppImage arm64
-        uses: actions/upload-artifact@v6
-        with:
-          name: linux-AppImage-arm64
-          path: dist/Heroic*arm64.AppImage
           retention-days: 14
           if-no-files-found: error
           compression-level: 3
