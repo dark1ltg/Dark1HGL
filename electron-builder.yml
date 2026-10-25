@@ -1,5 +1,10 @@
 appId: com.heroicgameslauncher.hgl
 productName: Heroic
+publish:
+  provider: github
+  owner: dark1ltg
+  repo: HeroicGamesLauncher
+  releaseType: release
 files:
   - build/**/*
   - node_modules/**/*
