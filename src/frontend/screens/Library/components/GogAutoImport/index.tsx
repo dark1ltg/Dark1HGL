@@ -27,6 +27,34 @@ import './index.css'
 const isActionable = (game: GOGScanResult) =>
   game.status === 'importable' || game.status === 'moved'
 
+function chooseSelection(
+  found: GOGScanResult[],
+  previousResults: GOGScanResult[] | null,
+  current: Set<string>
+) {
+  const picked = new Set<string>()
+  const pickedApps = new Set<string>()
+  const previousPaths = new Set(previousResults?.map((game) => game.path))
+
+  const take = (game: GOGScanResult) => {
+    if (!isActionable(game) || pickedApps.has(game.appName)) return
+    pickedApps.add(game.appName)
+    picked.add(game.path)
+  }
+
+  if (previousResults) {
+    for (const game of found) {
+      if (current.has(game.path)) take(game)
+    }
+  }
+
+  for (const game of found) {
+    if (previousResults && previousPaths.has(game.path)) continue
+    take(game)
+  }
+  return picked
+}
+
 export default function GogAutoImport() {
   const { t } = useTranslation()
   const { setShowGogAutoImport } = useContext(LibraryContext)
@@ -124,14 +152,7 @@ export default function GogAutoImport() {
       folders.filter((folder) => folder.available).map(({ path }) => path)
     )
     setResults(found)
-    const picked = new Set<string>()
-    const pickedApps = new Set<string>()
-    for (const game of found) {
-      if (!isActionable(game) || pickedApps.has(game.appName)) continue
-      pickedApps.add(game.appName)
-      picked.add(game.path)
-    }
-    setSelected(picked)
+    setSelected((current) => chooseSelection(found, results, current))
     setScanning(false)
   }
 
@@ -324,7 +345,9 @@ export default function GogAutoImport() {
           {scanning && (
             <FontAwesomeIcon className="fa-spin-pulse" icon={faSpinner} />
           )}{' '}
-          {t('gog-auto-import.scan', 'Scan')}
+          {results
+            ? t('gog-auto-import.rescan', 'Rescan')
+            : t('gog-auto-import.scan', 'Scan')}
         </button>
         <button
           className="button is-primary"

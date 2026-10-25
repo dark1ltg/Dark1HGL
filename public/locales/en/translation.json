@@ -481,6 +481,7 @@
         "import_other": "Import {{count}} game(s)",
         "progress": "{{done}} of {{total}} imported",
         "remove-folder": "Remove folder",
+        "rescan": "Rescan",
         "scan": "Scan",
         "select-folder": "Select a folder with games",
         "status": {
