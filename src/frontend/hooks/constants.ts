@@ -9,6 +9,7 @@ type StatusArgs = {
   percent?: number
   size?: string
   writingToDisk?: boolean
+  writingDetail?: string
 }
 
 export function getStatusLabel({
@@ -18,29 +19,43 @@ export function getStatusLabel({
   runner,
   size,
   percent,
-  writingToDisk
+  writingToDisk,
+  writingDetail
 }: StatusArgs): string {
   const roundedPercent = Math.ceil(percent || 0)
+  const writePercent = (percent ?? 0).toFixed(1)
   const statusMap: Partial<Record<Status, string>> = {
     notSupportedGame: t('gamepage:status.notSupportedGame', 'Not Supported'),
     notAvailable: t('gamepage:status.gameNotAvailable', 'Game not available'),
     playing: t('gamepage:status.playing', 'Playing'),
     queued: `${t('gamepage:status.queued', 'Queued')}`,
     uninstalling: t('gamepage:status.uninstalling', 'Uninstalling'),
-    updating: writingToDisk
+    updating: writingDetail
       ? t(
-          'gamepage:status.updatingWriting',
-          'Updating Game {{percent}}% - writing to disk',
-          { percent: roundedPercent }
+          'gamepage:status.updatingDetail',
+          'Updating Game {{percent}}% · {{detail}}',
+          { percent: writePercent, detail: writingDetail }
         )
-      : `${t('gamepage:status.updating')} ${roundedPercent}%`,
-    installing: writingToDisk
+      : writingToDisk
+        ? t(
+            'gamepage:status.updatingWriting',
+            'Updating Game {{percent}}% - writing to disk',
+            { percent: roundedPercent }
+          )
+        : `${t('gamepage:status.updating')} ${roundedPercent}%`,
+    installing: writingDetail
       ? t(
-          'gamepage:status.installingWriting',
-          'Downloading {{percent}}% - writing to disk',
-          { percent: roundedPercent }
+          'gamepage:status.installingDetail',
+          'Downloading {{percent}}% · {{detail}}',
+          { percent: writePercent, detail: writingDetail }
         )
-      : `${t('gamepage:status.downloading', 'Downloading')} ${roundedPercent}%`,
+      : writingToDisk
+        ? t(
+            'gamepage:status.installingWriting',
+            'Downloading {{percent}}% - writing to disk',
+            { percent: roundedPercent }
+          )
+        : `${t('gamepage:status.downloading', 'Downloading')} ${roundedPercent}%`,
     extracting: t('gamepage:status.extracting', 'Extracting'),
     'syncing-saves': t('gamepage:status.syncingSaves', 'Syncing Saves'),
     moving: t('gamepage:gamecard.moving', 'Moving'),

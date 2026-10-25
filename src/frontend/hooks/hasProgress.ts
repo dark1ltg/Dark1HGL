@@ -37,7 +37,11 @@ export const hasProgress = (appName: string, runner: Runner) => {
     if (!installationProgress) return
     setProgress({
       ...installationProgress,
-      percent: blendPercent(installationProgress, previousProgress)
+      // A GOG write total is the real disk progress. Blending it with an
+      // older saved percent hides the bytes still being written.
+      percent: installationProgress.totalBytes
+        ? installationProgress.percent
+        : blendPercent(installationProgress, previousProgress)
     })
   }, [installationProgress, previousProgress])
 

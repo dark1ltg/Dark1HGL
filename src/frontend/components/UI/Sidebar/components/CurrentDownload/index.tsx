@@ -64,7 +64,11 @@ export default React.memo(function CurrentDownload({
     <Link to={`/download-manager`} className="currentDownload">
       <span className="statusIcon" title={`${getStatus()} - ${gameTitle}`}>
         <Badge
-          badgeContent={`${Math.round(progress.percent ?? 0)}%`}
+          badgeContent={
+            progress.totalBytes
+              ? `${(progress.percent ?? 0).toFixed(0)}%`
+              : `${Math.round(progress.percent ?? 0)}%`
+          }
           color="primary"
         >
           <FontAwesomeIcon icon={faDownload} />
@@ -74,7 +78,9 @@ export default React.memo(function CurrentDownload({
       <div className="full-size">
         <span className="gameTitle">{gameTitle ?? 'GameName'}</span>
         <br />
-        <span className="downloadStatus">{getStatus()}</span>
+        <span className="downloadStatus">
+          {progress.totalBytes ? progress.bytes : getStatus()}
+        </span>
         <br />
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Box sx={{ width: '100%', mr: 1 }}>
@@ -84,9 +90,11 @@ export default React.memo(function CurrentDownload({
             />
           </Box>
           <Box sx={{ minWidth: 35 }}>
-            <Typography variant="body2">{`${Math.ceil(
-              progress.percent || 0
-            )}%`}</Typography>
+            <Typography variant="body2">
+              {progress.totalBytes
+                ? `${(progress.percent ?? 0).toFixed(1)}%`
+                : `${Math.ceil(progress.percent || 0)}%`}
+            </Typography>
           </Box>
         </Box>
       </div>

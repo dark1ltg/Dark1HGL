@@ -69,7 +69,8 @@ export function hasStatus(gameInfo: GameInfo, gameSize?: string) {
           size: gameSize,
           statusContext,
           percent: progress.percent,
-          writingToDisk
+          writingToDisk,
+          writingDetail: progress.totalBytes ? progress.bytes : undefined
         })
         return setGameStatus({ status, folder, label, statusContext })
       }
@@ -121,6 +122,8 @@ export function hasStatus(gameInfo: GameInfo, gameSize?: string) {
     gog.library,
     is_installed,
     progress.percent,
+    progress.bytes,
+    progress.totalBytes,
     writingToDisk
   ])
 

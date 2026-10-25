@@ -25,6 +25,7 @@ export default function ProgressHeader(props: {
   const { t } = useTranslation()
   const [progress] = hasProgress(props.appName, props.runner)
   const writingToDisk = useProgressIsStale(progress, props.state === 'running')
+  const writing = (progress.totalBytes ?? 0) > 0
   const [avgSpeed, setAvgDownloadSpeed] = useState<Point[]>(
     Array<Point>(sampleSize).fill({ download: 0, disk: 0 })
   )
@@ -106,12 +107,17 @@ export default function ProgressHeader(props: {
           </div>
         </div>
       </div>
-      {props.state !== 'idle' && props.appName && progress.eta && (
+      {props.state !== 'idle' && props.appName && (progress.eta || writing) && (
         <div className="downloadBar">
           <div className="downloadProgressStats">
-            <p className="downloadStat" color="var(--text-default)">{`${
-              progress.percent ?? 0
-            }% [${progress.bytes ?? ''}] `}</p>
+            <p className="downloadStat" color="var(--text-default)">
+              {writing
+                ? `${(progress.percent ?? 0).toFixed(2)}% ${t(
+                    'download-manager.written',
+                    'written'
+                  )} [${progress.bytes}]`
+                : `${progress.percent ?? 0}% [${progress.bytes ?? ''}] `}
+            </p>
           </div>
           <Box sx={{ display: 'flex', alignItems: 'baseline' }}>
             <Box sx={{ width: '100%', mr: 1 }}>

@@ -316,6 +316,10 @@ export interface InstallProgress {
   downSpeed?: number
   diskSpeed?: number
   file?: string
+  // Bytes of the game written to disk, and how many the update will write.
+  // Set for GOG so the bar can follow the disk instead of the download.
+  writtenBytes?: number
+  totalBytes?: number
 }
 export interface InstalledInfo {
   manifest?: {

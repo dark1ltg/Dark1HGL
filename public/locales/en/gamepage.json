@@ -304,6 +304,7 @@
         "importing": "Importing",
         "installed": "Installed",
         "installing": "Installing",
+        "installingDetail": "Downloading {{percent}}% · {{detail}}",
         "installingWriting": "Downloading {{percent}}% - writing to disk",
         "launching": "Launching",
         "moving": "Moving Installation, please wait",
@@ -321,6 +322,7 @@
         "totalDownloaded": "Total Downloaded",
         "uninstalling": "Uninstalling",
         "updating": "Updating Game",
+        "updatingDetail": "Updating Game {{percent}}% · {{detail}}",
         "updatingWriting": "Updating Game {{percent}}% - writing to disk",
         "winetricks": "Applying Winetricks fixes"
     },
