@@ -1,5 +1,10 @@
 appId: com.heroicgameslauncher.hgl
 productName: Heroic
+publish:
+  provider: github
+  owner: dark1ltg
+  repo: HeroicGamesLauncher
+  releaseType: release
 files:
   - build/**/*
   - node_modules/**/*
@@ -65,6 +70,12 @@ dmg:
 
 linux:
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
+  # Releases are the x86_64 AppImage only. Other formats stay available
+  # through the dist:* scripts, which name their targets explicitly.
+  target:
+    - target: AppImage
+      arch:
+        - x64
   category: Game
   icon: build/icon.icns
   desktop:
