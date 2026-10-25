@@ -53,6 +53,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { unzipSync } from 'node:zlib'
 import { readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { checkForRedistUpdates } from './redist'
+import { runStartupAutoImport } from './auto_import'
 import { runGogdlCommandStub } from './e2eMock'
 import { gogdlConfigPath } from './constants'
 import { userDataPath } from 'backend/constants/paths'
@@ -599,6 +600,8 @@ export default class GOGLibraryManager implements LibraryManager {
     })
 
     logInfo('Saved games data', LogPrefix.Gog)
+
+    void runStartupAutoImport()
 
     return this.defaultExecResult
   }

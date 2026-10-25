@@ -34,6 +34,7 @@ import { Category, PlatformsFilters, StoresFilters } from 'frontend/types'
 import { hasHelp } from 'frontend/hooks/hasHelp'
 import EmptyLibraryMessage from './components/EmptyLibrary'
 import CategoriesManager from './components/CategoriesManager'
+import GogAutoImport from './components/GogAutoImport'
 import LibraryTour from './components/LibraryTour'
 import AlphabetFilter from './components/AlphabetFilter'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
@@ -192,6 +193,7 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [showCategories, setShowCategories] = useState(false)
+  const [showGogAutoImport, setShowGogAutoImport] = useState(false)
 
   const [showAlphabetFilter, setShowAlphabetFilter] = useState(
     JSON.parse(storage.getItem('showAlphabetFilter') || 'true')
@@ -714,6 +716,7 @@ export default React.memo(function Library(): JSX.Element {
         sortInstalled,
         handleAddGameButtonClick: () => handleModal('', 'sideload', null),
         setShowCategories,
+        setShowGogAutoImport,
         showAlphabetFilter: showAlphabetFilter,
         onToggleAlphabetFilter: handleToggleAlphabetFilter,
         gamesForAlphabetFilter,
@@ -771,6 +774,7 @@ export default React.memo(function Library(): JSX.Element {
       </button>
 
       {showCategories && <CategoriesManager />}
+      {showGogAutoImport && <GogAutoImport />}
     </LibraryContext.Provider>
   )
 })

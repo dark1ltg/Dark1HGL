@@ -250,6 +250,7 @@ export interface LibraryContextType {
   setShowUpdatesOnly: (value: boolean) => void
   handleAddGameButtonClick: () => void
   setShowCategories: (value: boolean) => void
+  setShowGogAutoImport: (value: boolean) => void
   showAlphabetFilter: boolean
   onToggleAlphabetFilter: () => void
   alphabetFilterLetter: string | null
