@@ -1,5 +1,5 @@
 {
-  "name": "heroic",
+  "name": "dark1hgl",
   "version": "2.22.5-gog.5",
   "versionNames": {
     "stable": "Hajrudin",
@@ -9,14 +9,14 @@
   "main": "build/main/main.js",
   "homepage": "./",
   "license": "GPL-3.0-only",
-  "description": "dark1ltg fork of Heroic: GOG library folders + x86_64 Linux AppImage",
+  "description": "Dark1HGL — GOG-focused Heroic fork: library folders, auto-import, x86_64 Linux AppImage",
   "repository": {
     "type": "Github",
-    "url": "https://github.com/dark1ltg/HeroicGamesLauncher"
+    "url": "https://github.com/dark1ltg/Dark1HGL"
   },
   "author": {
-    "name": "Heroic Games Launcher (dark1ltg fork)",
-    "email": "heroicgameslauncher@protonmail.com"
+    "name": "dark1ltg",
+    "url": "https://github.com/dark1ltg"
   },
   "engines": {
     "node": ">=22"

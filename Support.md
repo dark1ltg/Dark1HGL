@@ -1,15 +1,14 @@
 ## Support
 
-### This fork (dark1ltg)
+### Dark1HGL (this project)
 
-- Issues / discussion: https://github.com/dark1ltg/HeroicGamesLauncher/issues
-- Releases: https://github.com/dark1ltg/HeroicGamesLauncher/releases
-- Scope and known differences from upstream: [FORK.md](FORK.md)
+- Issues: https://github.com/dark1ltg/Dark1HGL/issues
+- Releases: https://github.com/dark1ltg/Dark1HGL/releases
+- Scope: [FORK.md](FORK.md)
 
-This fork is a personal project. It is not covered by official Heroic support channels.
+Personal project. Not covered by official Heroic support.
 
-### Upstream Heroic (official project)
+### Upstream Heroic (official)
 
-- Discord: see the [upstream README](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher)
-- Patreon: https://patreon.com/heroicgameslauncher
-- Ko-fi: https://ko-fi.com/flavioislima
+- https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher
+- Discord / Patreon / Ko-fi: see upstream README

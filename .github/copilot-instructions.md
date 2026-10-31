@@ -1,6 +1,6 @@
 # Heroic Games Launcher — Copilot Instructions
 
-> **This checkout is the [dark1ltg/HeroicGamesLauncher](https://github.com/dark1ltg/HeroicGamesLauncher) fork.**  
+> **This checkout is [Dark1HGL](https://github.com/dark1ltg/Dark1HGL)** (dark1ltg) — a GOG-focused Heroic-based launcher, not official Heroic.  
 > Read [FORK.md](../FORK.md) and [AGENTS.md](../AGENTS.md). Scope: GOG library-folder / auto-import only; ship **x86_64 AppImage** only; linux x64 gogdl is vendored under `vendor/gogdl/`.
 
 ## Architecture Overview

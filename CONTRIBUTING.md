@@ -1,14 +1,12 @@
-## Contributing (dark1ltg fork)
+## Contributing to Dark1HGL
 
-This is a **personal fork** of Heroic ([FORK.md](FORK.md)). There is no CLA workflow aimed at landing changes upstream from this remote by default.
+Personal project ([FORK.md](FORK.md)). No CLA aimed at landing changes into upstream Heroic by default.
 
-### Working on this fork
-
-1. Read [FORK.md](FORK.md) for scope (GOG library folders, AppImage-only releases).
-2. Use the development steps in [README.md](README.md).
-3. Keep GOG auto-import GOG-only; keep release packaging AppImage x86_64-only unless explicitly changing fork goals.
-4. Update [CHANGELOG.md](CHANGELOG.md) / [README.md](README.md) / [FORK.md](FORK.md) when you change user-facing behavior.
+1. Read [FORK.md](FORK.md) — GOG library folders; AppImage-only releases.
+2. Dev setup: [README.md](README.md).
+3. Keep auto-import GOG-only; keep packaging x86_64 AppImage-only unless goals change.
+4. Update [CHANGELOG.md](CHANGELOG.md) / [README.md](README.md) / [FORK.md](FORK.md) for user-facing changes.
 
 ### Upstream Heroic
 
-To contribute to **official** Heroic, use the [upstream wiki Contributing guide](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki/Contributing) and the upstream [Contribution License Agreement](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/blob/main/doc/cla.md) against [Heroic-Games-Launcher/HeroicGamesLauncher](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher).
+Contribute to official Heroic via their [wiki](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki/Contributing) and [CLA](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/blob/main/doc/cla.md).

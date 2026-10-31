@@ -1,9 +1,9 @@
 <!--
     Describe your PR below this comment
 
-    This is the dark1ltg Heroic fork (see FORK.md): GOG-only auto-import / library folders;
+    This is Dark1HGL (see FORK.md): GOG-only auto-import / library folders;
     ship target is the x86_64 AppImage. Call out doc updates (README / CHANGELOG / FORK.md)
-    when user-facing behavior changes.
+    when user-facing behavior changes. Do not describe this PR as official Heroic.
 
     ‼️ AI Disclosure
     If you used AI in the process of creating this pull request, you **have to** disclose the extent of its use (e.g.
