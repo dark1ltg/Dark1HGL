@@ -171,7 +171,7 @@ async function main() {
   let source
   if (release) {
     const { data } = await axios.get(
-      'https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases/latest'
+      'https://api.github.com/repos/dark1ltg/Dark1HGL/releases/latest'
     )
     const asset = getReleaseAsset(data, architecture)
     const { data: content } = await axios.get(asset.browser_download_url, {

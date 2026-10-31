@@ -25,8 +25,8 @@ interface GitHubRelease {
 async function main() {
   console.log('tag name: ', process.env.RELEASE_VERSION)
   console.log('is prerelease: ', process.env.IS_PRERELEASE)
-  const repoOrgName = 'Heroic-Games-Launcher'
-  const repoName = repoOrgName + '/HeroicGamesLauncher'
+  const repoOrgName = 'dark1ltg'
+  const repoName = repoOrgName + '/Dark1HGL'
   const packagingDirectory = process.argv[2] || './com.heroicgameslauncher.hgl'
 
   // update url in com.heroicgameslauncher.hgl.yml
@@ -91,7 +91,7 @@ async function main() {
     console.log(`Using AppImage: ${appimage.browser_download_url}`)
     const sha512 = await downloadChecksum(appimage.browser_download_url)
     heroicYml = heroicYml.replace(
-      /https:\/\/github.com\/Heroic-Games-Launcher\/HeroicGamesLauncher\/releases\/download\/v.*..*..*\/Heroic-.*..*..*(-linux-[a-z0-9_]+)?.AppImage/,
+      /https:\/\/github.com\/(Heroic-Games-Launcher\/HeroicGamesLauncher|dark1ltg\/Dark1HGL)\/releases\/download\/v.*..*..*\/Heroic-.*..*..*(-linux-[a-z0-9_]+)?.AppImage/,
       appimage.browser_download_url
     )
     heroicYml = heroicYml.replace(

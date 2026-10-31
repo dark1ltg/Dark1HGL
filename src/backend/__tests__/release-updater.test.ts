@@ -11,7 +11,7 @@ const manifestPath =
 const metainfoPath =
   './com.heroicgameslauncher.hgl/com.heroicgameslauncher.hgl.metainfo.xml'
 const version = 'v2.22.1'
-const url = `https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/${version}/Heroic-2.22.1-linux-x86_64.AppImage`
+const url = `https://github.com/dark1ltg/Dark1HGL/releases/download/${version}/Heroic-2.22.1-linux-x86_64.AppImage`
 const content = Buffer.from('x86_64 release payload')
 const armContent = Buffer.from('ARM64 release payload')
 const sourcesPath = './com.heroicgameslauncher.hgl/heroic-sources.json'
@@ -52,7 +52,7 @@ async function runUpdater(
   const files = new Map<string, string | Buffer>([
     [
       manifestPath,
-      `url: https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v1.0.0/Heroic-1.0.0-linux-x86_64.AppImage\nsha512: ${'0'.repeat(128)}\n`
+      `url: https://github.com/dark1ltg/Dark1HGL/releases/download/v1.0.0/Heroic-1.0.0-linux-x86_64.AppImage\nsha512: ${'0'.repeat(128)}\n`
     ],
     [
       metainfoPath,
@@ -129,8 +129,8 @@ test.each([undefined, version])(
     const { files, get } = await runUpdater(requestedTag)
     expect(get).toHaveBeenCalledWith(
       requestedTag
-        ? `https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases/tags/${requestedTag}`
-        : 'https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases/latest'
+        ? `https://api.github.com/repos/dark1ltg/Dark1HGL/releases/tags/${requestedTag}`
+        : 'https://api.github.com/repos/dark1ltg/Dark1HGL/releases/latest'
     )
     const manifest = files.get(manifestPath)!.toString()
     expect(manifest).toContain(url)

@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const axios = require('axios')
 const { writeFileSync } = require('graceful-fs')
-const api =
-  'https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases'
+const api = 'https://api.github.com/repos/dark1ltg/Dark1HGL/releases'
 
 async function getDownloadCount() {
   const { data } = await axios.get(api)

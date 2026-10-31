@@ -49,9 +49,7 @@ async function showAutoupdateDialog() {
     autoUpdater.downloadUpdate()
   }
   if (response === 2) {
-    shell.openExternal(
-      'https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases'
-    )
+    shell.openExternal('https://github.com/dark1ltg/Dark1HGL/releases')
     showAutoupdateDialog()
   }
 }
