@@ -99,6 +99,11 @@ export interface AppSettings extends GameSettings {
   altNileBin: string
   autoUpdateGames: boolean
   checkForUpdatesOnStartup: boolean
+  gogAutoImportFolders?: Array<string | { id: string; path: string }>
+  gogAutoImportEnabled?: boolean
+  // Marker ids and paths the user removed, so an offline drive cannot add them back
+  gogAutoImportIgnoredIds?: string[]
+  gogAutoImportIgnoredPaths?: string[]
   checkUpdatesInterval: number
   customCSS: string
   customThemesPath: string
@@ -310,7 +315,12 @@ export interface InstallProgress {
   percent?: number
   downSpeed?: number
   diskSpeed?: number
+  readSpeed?: number
   file?: string
+  // Bytes of the game written to disk, and how many the update will write.
+  // Set for GOG so the bar can follow the disk instead of the download.
+  writtenBytes?: number
+  totalBytes?: number
 }
 export interface InstalledInfo {
   manifest?: {

@@ -2,6 +2,38 @@ import { LaunchOption } from 'common/types'
 
 export type GogInstallPlatform = 'windows' | 'osx' | 'linux'
 
+type GOGScanStatus =
+  | 'importable'
+  | 'installed'
+  | 'moved'
+  | 'notOwned'
+  | 'unsupportedPlatform'
+
+export interface GOGScanResult {
+  appName: string
+  title: string
+  path: string
+  platform: GogInstallPlatform
+  status: GOGScanStatus
+}
+
+export interface GOGLibraryFolder {
+  path: string
+  available: boolean
+}
+
+export interface GOGBatchImportResult {
+  // Install paths, so two copies of one game can be told apart
+  imported: string[]
+  failed: string[]
+}
+
+export interface GOGAutoImportProgress {
+  appName: string
+  path: string
+  phase: 'active' | 'done' | 'failed'
+}
+
 // Output of `legendary info AppName --json`
 export interface GogInstallInfo {
   game: GameInstallInfo

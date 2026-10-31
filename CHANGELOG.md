@@ -1,5 +1,56 @@
 # Changelog
 
+Changelog for **[Dark1HGL](https://github.com/dark1ltg/Dark1HGL)** (GOG-focused launcher based on Heroic).
+
+Upstream Heroic release notes: [Heroic releases](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases). The historical section below is the old upstream changelog inherited at clone time (stops at older 2.2.x) and is kept for provenance only.
+
+Project notes: [FORK.md](FORK.md).
+
+---
+
+## Fork releases (2.22.5-gog.\*\*\*)
+
+### 2.22.5-gog.\*5
+
+**AppImage:** [Heroic-2.22.5-gog.\*5-linux-x86_64.AppImage](https://github.com/dark1ltg/Dark1HGL/releases/download/v2.22.5-gog.5/Heroic-2.22.5-gog.5-linux-x86_64.AppImage)
+
+- Vendored **gogdl 1.3.2** for linux x64 (`vendor/gogdl/`) with the cache-delete ordering fix ([heroic-gogdl#100](https://github.com/Heroic-Games-Launcher/heroic-gogdl/issues/100)); `downloadHelperBinaries` installs it instead of upstream v1.3.0
+- Live GOG install/update progress: bytes **written** to disk; **disk reads** when percent stalls
+- Activity / UI cues while a GOG update is still writing
+- Report a problem can show **update** and **install** logs (not only launch.log)
+- Download queue: start GOG **game** updates ahead of redistributables; keep a running game visible while redistributables queue; stop re-downloading redistributables on every update when already present
+
+### 2.22.5-gog.\*4
+
+- GOG import window **Rescan** button: re-walk folders, keep prior checks, select newly found games
+
+### 2.22.5-gog.\*3
+
+- Import records games one at a time with **found / selected / imported** counts
+- Install folder metadata / shortcuts / shared redistributable check deferred until after the list finishes
+- Prefer installed **Proton-CachyOS / Proton-GE** (or another Proton) over system Wine for new imports; keep an already chosen Wine version
+- Fresh imports no longer all show “New Version Available” when the build checksum was missing
+
+### 2.22.5-gog.\*2
+
+- Import uses the folder you checked so Import applies to those games
+- Unplugged drives are not treated as moved (no incorrect re-link)
+- Connected / Drive not connected stay current while the import dialog is open
+- Scans find GOG games nested deeper than four folders
+- Re-link keeps existing game settings; multi-folder duplicates left for manual pick
+
+### 2.22.5-gog.\*1
+
+Initial fork AppImage cut from the GOG auto-import work:
+
+- Steam-style **GOG library folders** with bulk / automatic import
+- Watch drives, auto-import on connect, re-link moved installs
+- CI/packaging: publish **x86_64 Linux AppImage only** to this fork’s GitHub Releases (no Flatpak / Windows / macOS / AUR / Flathub from this fork)
+
+---
+
+## Upstream historical changelog (as inherited)
+
 ## 2.2.6 Oden - Hotfix 5
 
 ### What's Changed

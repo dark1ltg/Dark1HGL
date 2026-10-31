@@ -49,6 +49,9 @@ export interface StoreStructure {
     'window-props': WindowProps
     settings: AppSettings
     skipVcRuntime: boolean
+    // Set after a detected Proton replaces the automatic Wine default, so a
+    // later choice of system Wine is not overwritten on the next launch.
+    protonDefaultApplied?: boolean
   }
   wineDownloaderInfoStore: {
     'wine-releases': WineVersionInfo[]

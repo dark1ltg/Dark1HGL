@@ -14,7 +14,39 @@ import Upload from '@mui/icons-material/Upload'
 import Cloud from '@mui/icons-material/Cloud'
 import classNames from 'classnames'
 
-import type { GetLogFileArgs } from 'backend/logger/paths'
+import type { GameLogType, GetLogFileArgs } from 'backend/logger/paths'
+import type { TFunction } from 'i18next'
+
+const GAME_LOG_TYPES: GameLogType[] = ['launch', 'update', 'install', 'repair']
+
+function defaultGameLogType(status: string | undefined): GameLogType {
+  if (status === 'updating') return 'update'
+  if (status === 'installing') return 'install'
+  if (status === 'repairing') return 'repair'
+  return 'launch'
+}
+
+function selectedGameLogType(args: GetLogFileArgs): GameLogType {
+  return args.appName ? (args.type ?? 'launch') : 'launch'
+}
+
+function gameLogTypeLabel(type: GameLogType, t: TFunction): string {
+  switch (type) {
+    case 'update':
+      return t('setting.log.types.update', 'Update')
+    case 'install':
+      return t('setting.log.types.install', 'Install')
+    case 'repair':
+      return t('setting.log.types.repair', 'Repair')
+    case 'import':
+      return t('setting.log.types.import', 'Import')
+    case 'setup':
+      return t('setting.log.types.setup', 'Setup')
+    case 'launch':
+    default:
+      return t('setting.log.types.launch', 'Launch')
+  }
+}
 
 interface LogBoxProps {
   logFileContent: string
@@ -73,15 +105,23 @@ export default function LogSettings() {
   const { setUploadLogFileProps } = useGlobalState.keys('setUploadLogFileProps')
   const isInSettingsMenu = appName === 'default'
 
+  const { epic, gog, amazon, zoom, sideloadedLibrary, libraryStatus } =
+    useContext(ContextProvider)
+
   const [logFileContent, setLogFileContent] = useState<string>('')
   const [logFileExist, setLogFileExist] = useState<boolean>(false)
-  const [showLogOf, setShowLogOf] = useState<GetLogFileArgs>(
-    !runner ? {} : { appName, runner }
-  )
+  const [showLogOf, setShowLogOf] = useState<GetLogFileArgs>(() => {
+    if (!runner || isInSettingsMenu) return {}
+    const status = libraryStatus.find(
+      (game) => game.appName === appName
+    )?.status
+    return {
+      appName,
+      runner,
+      type: defaultGameLogType(status)
+    }
+  })
   const [refreshing, setRefreshing] = useState<boolean>(true)
-
-  const { epic, gog, amazon, zoom, sideloadedLibrary } =
-    useContext(ContextProvider)
   const [installedGames, setInstalledGames] = useState<GameInfo[]>([])
 
   useEffect(() => {
@@ -111,7 +151,16 @@ export default function LogSettings() {
       .getLogContent(showLogOf)
       .then((content: string) => {
         if (!content) {
-          setLogFileContent(t('setting.log.no-file', 'No log file found'))
+          const lookingAtLaunch =
+            !!showLogOf.appName && selectedGameLogType(showLogOf) === 'launch'
+          setLogFileContent(
+            lookingAtLaunch
+              ? t(
+                  'setting.log.no-file-launch',
+                  'No launch log found. An update writes to the Update log instead — open that tab above, or look under ~/.local/state/Heroic/logs/games/<id>_gog/update.log'
+                )
+              : t('setting.log.no-file', 'No log file found')
+          )
           setLogFileExist(false)
           return
         }
@@ -150,9 +199,12 @@ export default function LogSettings() {
         ({ app_name }) => app_name === showLogOf.appName
       )?.title
       return t(
-        'setting.log.descriptiveNames.game-log',
-        'Game log of {{gameTitle}}',
-        { gameTitle }
+        'setting.log.descriptiveNames.game-log-typed',
+        '{{type}} log of {{gameTitle}}',
+        {
+          gameTitle,
+          type: gameLogTypeLabel(selectedGameLogType(showLogOf), t)
+        }
       )
     }
     if (showLogOf.runner === 'legendary')
@@ -183,11 +235,17 @@ export default function LogSettings() {
       title: game.overrides?.title || game.title,
       args: {
         appName: game.app_name,
-        runner: game.runner
+        runner: game.runner,
+        type: 'launch' as const
       }
     }))
     return baseFiles.concat(logsForInstalledGames)
   }, [installedGames, zoom.enabled])
+
+  const selectedGameLog =
+    showLogOf.appName && showLogOf.runner
+      ? { appName: showLogOf.appName, runner: showLogOf.runner }
+      : undefined
 
   return (
     <>
@@ -220,6 +278,28 @@ export default function LogSettings() {
                   title={title}
                 >
                   {title}
+                </a>
+              )
+            })}
+          </span>
+        )}
+        {selectedGameLog && (
+          <span className="log-buttongroup">
+            {GAME_LOG_TYPES.map((type) => {
+              const label = gameLogTypeLabel(type, t)
+              return (
+                <a
+                  key={type}
+                  className={`log-buttons ${
+                    selectedGameLogType(showLogOf) === type ? 'log-choosen' : ''
+                  }`}
+                  onClick={() => {
+                    setRefreshing(true)
+                    setShowLogOf({ ...selectedGameLog, type })
+                  }}
+                  title={label}
+                >
+                  {label}
                 </a>
               )
             })}

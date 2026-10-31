@@ -38,6 +38,7 @@ const initialContext: LibraryContextType = {
   setShowUpdatesOnly: () => null,
   handleAddGameButtonClick: () => null,
   setShowCategories: () => null,
+  setShowGogAutoImport: () => null,
   showAlphabetFilter: false,
   onToggleAlphabetFilter: () => null,
   alphabetFilterLetter: null,

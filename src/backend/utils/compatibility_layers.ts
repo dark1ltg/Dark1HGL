@@ -17,6 +17,7 @@ import {
   toolsPath,
   userHome
 } from 'backend/constants/paths'
+import { configStore } from 'backend/constants/key_value_stores'
 import { isLinux, isMac } from 'backend/constants/environment'
 
 /**
@@ -200,6 +201,113 @@ export async function getLinuxWineSet(
   }
 
   return new Set([...proton, ...altWine, ...defaultWineSet, ...customWineSet])
+}
+
+// Community builds first. Valve Proton and other builds still beat system Wine.
+function protonRank(name: string) {
+  if (/cachyos/i.test(name)) return 0
+  if (/ge[-_. ]?proton|proton[-_. ]?ge/i.test(name)) return 1
+  return 2
+}
+
+export function preferredProton(
+  installations: WineInstallation[]
+): WineInstallation | undefined {
+  const protons = installations.filter(
+    (wine) => wine.type === 'proton' && wine.bin
+  )
+  if (!protons.length) return
+
+  return [...protons].sort(compareProtons)[0]
+}
+
+function versionParts(name: string) {
+  return [...name.matchAll(/\d+/g)].map((match) => Number(match[0]))
+}
+
+function compareProtons(a: WineInstallation, b: WineInstallation) {
+  const rank = protonRank(a.name) - protonRank(b.name)
+  if (rank !== 0) return rank
+  const latest = Number(/latest/i.test(a.name)) - Number(/latest/i.test(b.name))
+  if (latest !== 0) return latest
+
+  const left = versionParts(a.name)
+  const right = versionParts(b.name)
+  const length = Math.max(left.length, right.length)
+  for (let i = 0; i < length; i++) {
+    const diff = (right[i] ?? -1) - (left[i] ?? -1)
+    if (diff !== 0) return diff
+  }
+  return a.name.localeCompare(b.name)
+}
+
+function wineBin(wine: WineInstallation) {
+  const bin = wine.bin?.trim() ?? ''
+  if (bin.startsWith("'") && bin.endsWith("'")) return bin.slice(1, -1)
+  return bin
+}
+
+// The factory default is whatever `which wine` returns. A Wine the user picked
+// from the list has a different binary and is left alone.
+export function isUnchosenWineDefault(wine?: WineInstallation) {
+  if (!wine || wine.type !== 'wine') return false
+  const bin = wineBin(wine)
+  if (!bin || wine.name === 'Wine Default' || wine.name.includes('Not Found')) {
+    return true
+  }
+  if (bin === '/usr/bin/wine') return true
+  return bin === wineBin(getDefaultWine())
+}
+
+let protonDefaultLookup: Promise<WineInstallation | undefined> | null = null
+
+// When the saved default is still system Wine, switch it to a detected Proton.
+// An explicit Wine choice is kept, including switching back to system Wine.
+export function preferDetectedProton(
+  current?: WineInstallation
+): Promise<WineInstallation | undefined> {
+  if (
+    !isLinux ||
+    !current ||
+    !isUnchosenWineDefault(current) ||
+    configStore.get('protonDefaultApplied', false)
+  ) {
+    return Promise.resolve(current)
+  }
+
+  if (!protonDefaultLookup) {
+    const lookup = (async () => {
+      try {
+        const proton = preferredProton([...(await getLinuxWineSet(true))])
+        const latest = GlobalConfig.get().getSettings().wineVersion
+        if (!proton || (latest && !isUnchosenWineDefault(latest))) {
+          return latest ?? current
+        }
+        if (configStore.get('protonDefaultApplied', false)) {
+          return latest ?? current
+        }
+        GlobalConfig.get().setSetting('wineVersion', proton)
+        configStore.set('protonDefaultApplied', true)
+        logInfo(
+          `Using ${proton.name} instead of ${current.name}`,
+          LogPrefix.GlobalConfig
+        )
+        return proton
+      } catch (error) {
+        logError(
+          ['Could not look for a Proton default', error],
+          LogPrefix.GlobalConfig
+        )
+        return current
+      }
+    })()
+    protonDefaultLookup = lookup
+    void lookup.finally(() => {
+      if (protonDefaultLookup === lookup) protonDefaultLookup = null
+    })
+  }
+
+  return protonDefaultLookup
 }
 
 /// --------------- MACOS ------------------

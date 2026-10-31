@@ -1,10 +1,14 @@
-## Support Heroic Development
+## Support
 
-### Support Monthly: [Patreon Page](https://patreon.com/heroicgameslauncher)
+### Dark1HGL (this project)
 
-### Buy a Cofee: [Ko-fi](https://ko-fi.com/flavioislima)
+- Issues: https://github.com/dark1ltg/Dark1HGL/issues
+- Releases: https://github.com/dark1ltg/Dark1HGL/releases
+- Scope: [FORK.md](FORK.md)
 
-### Support with Crypto
+Personal project. Not covered by official Heroic support.
 
-- ETH / ERC-20: heroicgl.eth (0x9B5CbD4044141862e30248593Af84c42733Ec29c)
-- BTC: 1ApnwVnupgrJHuwSXVVp1tC9YoeAzDxFq1
+### Upstream Heroic (official)
+
+- https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher
+- Discord / Patreon / Ko-fi: see upstream README

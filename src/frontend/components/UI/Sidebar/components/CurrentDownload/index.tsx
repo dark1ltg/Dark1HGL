@@ -6,8 +6,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload } from '@fortawesome/free-solid-svg-icons'
 import Box from '@mui/material/Box'
 import { getGameInfo } from 'frontend/helpers'
-import { hasProgress } from 'frontend/hooks/hasProgress'
-import { Runner } from 'common/types'
+import { hasProgress, useProgressIsStale } from 'frontend/hooks/hasProgress'
+import { DownloadManagerState, Runner } from 'common/types'
 import './index.css'
 import { useTranslation } from 'react-i18next'
 import ContextProvider from 'frontend/state/ContextProvider'
@@ -16,10 +16,21 @@ import Badge from '@mui/material/Badge'
 type Props = {
   appName: string
   runner: Runner
+  downloadState: DownloadManagerState
 }
 
-export default React.memo(function CurrentDownload({ appName, runner }: Props) {
+export default React.memo(function CurrentDownload({
+  appName,
+  runner,
+  downloadState
+}: Props) {
   const [progress] = hasProgress(appName, runner)
+  const writingToDisk = useProgressIsStale(
+    progress,
+    downloadState === 'running'
+  )
+  const reading =
+    (progress.readSpeed ?? 0) >= 1 && (progress.diskSpeed ?? 0) < 1
   const [gameTitle, setGameTitle] = useState('')
   const { libraryStatus } = useContext(ContextProvider)
   const { t } = useTranslation()
@@ -42,7 +53,7 @@ export default React.memo(function CurrentDownload({ appName, runner }: Props) {
   }, [appName])
 
   function getStatus() {
-    return progress.percent && progress.percent > 98
+    return (progress.percent && progress.percent > 98) || writingToDisk
       ? t('status.processing', 'Processing files, please wait')
       : t('status.installing', 'Installing')
   }
@@ -55,7 +66,11 @@ export default React.memo(function CurrentDownload({ appName, runner }: Props) {
     <Link to={`/download-manager`} className="currentDownload">
       <span className="statusIcon" title={`${getStatus()} - ${gameTitle}`}>
         <Badge
-          badgeContent={`${Math.round(progress.percent ?? 0)}%`}
+          badgeContent={
+            progress.totalBytes
+              ? `${(progress.percent ?? 0).toFixed(0)}%`
+              : `${Math.round(progress.percent ?? 0)}%`
+          }
           color="primary"
         >
           <FontAwesomeIcon icon={faDownload} />
@@ -65,7 +80,15 @@ export default React.memo(function CurrentDownload({ appName, runner }: Props) {
       <div className="full-size">
         <span className="gameTitle">{gameTitle ?? 'GameName'}</span>
         <br />
-        <span className="downloadStatus">{getStatus()}</span>
+        <span className="downloadStatus">
+          {reading
+            ? t('download-manager.readingSpeed', 'Reading {{speed}} MB/s', {
+                speed: Math.round(progress.readSpeed ?? 0)
+              })
+            : progress.totalBytes
+              ? progress.bytes
+              : getStatus()}
+        </span>
         <br />
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Box sx={{ width: '100%', mr: 1 }}>
@@ -75,9 +98,11 @@ export default React.memo(function CurrentDownload({ appName, runner }: Props) {
             />
           </Box>
           <Box sx={{ minWidth: 35 }}>
-            <Typography variant="body2">{`${Math.ceil(
-              progress.percent || 0
-            )}%`}</Typography>
+            <Typography variant="body2">
+              {progress.totalBytes
+                ? `${(progress.percent ?? 0).toFixed(1)}%`
+                : `${Math.ceil(progress.percent || 0)}%`}
+            </Typography>
           </Box>
         </Box>
       </div>

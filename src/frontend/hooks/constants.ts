@@ -8,6 +8,9 @@ type StatusArgs = {
   statusContext?: string
   percent?: number
   size?: string
+  writingToDisk?: boolean
+  writingDetail?: string
+  readingSpeed?: number
 }
 
 export function getStatusLabel({
@@ -16,18 +19,67 @@ export function getStatusLabel({
   t,
   runner,
   size,
-  percent
+  percent,
+  writingToDisk,
+  writingDetail,
+  readingSpeed
 }: StatusArgs): string {
+  const roundedPercent = Math.ceil(percent || 0)
+  const writePercent = (percent ?? 0).toFixed(1)
   const statusMap: Partial<Record<Status, string>> = {
     notSupportedGame: t('gamepage:status.notSupportedGame', 'Not Supported'),
     notAvailable: t('gamepage:status.gameNotAvailable', 'Game not available'),
     playing: t('gamepage:status.playing', 'Playing'),
     queued: `${t('gamepage:status.queued', 'Queued')}`,
     uninstalling: t('gamepage:status.uninstalling', 'Uninstalling'),
-    updating: `${t('gamepage:status.updating')} ${Math.ceil(percent || 0)}%`,
-    installing: `${t('gamepage:status.downloading', 'Downloading')} ${Math.ceil(
-      percent || 0
-    )}%`,
+    updating:
+      writingDetail && readingSpeed
+        ? t(
+            'gamepage:status.updatingReading',
+            'Updating Game {{percent}}% · {{detail}} · reading {{speed}} MB/s',
+            {
+              percent: writePercent,
+              detail: writingDetail,
+              speed: readingSpeed
+            }
+          )
+        : writingDetail
+          ? t(
+              'gamepage:status.updatingDetail',
+              'Updating Game {{percent}}% · {{detail}}',
+              { percent: writePercent, detail: writingDetail }
+            )
+          : writingToDisk
+            ? t(
+                'gamepage:status.updatingWriting',
+                'Updating Game {{percent}}% - writing to disk',
+                { percent: roundedPercent }
+              )
+            : `${t('gamepage:status.updating')} ${roundedPercent}%`,
+    installing:
+      writingDetail && readingSpeed
+        ? t(
+            'gamepage:status.installingReading',
+            'Downloading {{percent}}% · {{detail}} · reading {{speed}} MB/s',
+            {
+              percent: writePercent,
+              detail: writingDetail,
+              speed: readingSpeed
+            }
+          )
+        : writingDetail
+          ? t(
+              'gamepage:status.installingDetail',
+              'Downloading {{percent}}% · {{detail}}',
+              { percent: writePercent, detail: writingDetail }
+            )
+          : writingToDisk
+            ? t(
+                'gamepage:status.installingWriting',
+                'Downloading {{percent}}% - writing to disk',
+                { percent: roundedPercent }
+              )
+            : `${t('gamepage:status.downloading', 'Downloading')} ${roundedPercent}%`,
     extracting: t('gamepage:status.extracting', 'Extracting'),
     'syncing-saves': t('gamepage:status.syncingSaves', 'Syncing Saves'),
     moving: t('gamepage:gamecard.moving', 'Moving'),

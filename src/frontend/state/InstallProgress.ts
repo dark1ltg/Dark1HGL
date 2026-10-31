@@ -3,13 +3,18 @@ import { useShallow } from 'zustand/react/shallow'
 
 import type { InstallProgress, Runner } from 'common/types'
 
-type StoreType = Record<`${string}_${Runner}`, InstallProgress>
+export type LiveInstallProgress = InstallProgress & { receivedAt: number }
+
+type StoreType = Record<`${string}_${Runner}`, LiveInstallProgress>
 
 const useInstallProgressRaw = create<StoreType>()(() => ({}))
 
-window.api.onProgressUpdate((e, { appName, progress, runner }) => {
+window.api.onProgressUpdate((_e, { appName, progress, runner }) => {
+  if (!progress || !runner) return
   const key = `${appName}_${runner}`
-  useInstallProgressRaw.setState({ [key]: progress })
+  useInstallProgressRaw.setState({
+    [key]: { ...progress, receivedAt: Date.now() }
+  })
 })
 
 export const useInstallProgress = <T>(

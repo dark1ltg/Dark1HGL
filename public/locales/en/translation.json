@@ -424,6 +424,7 @@
         },
         "label": {
             "disk": "Disk",
+            "read": "Read",
             "speed": "Download"
         },
         "link": "Downloads",
@@ -433,7 +434,12 @@
             "start-time": "Started at",
             "type": "Type"
         },
-        "title": "Downloads"
+        "readingHint": "Reading the installed game from disk. The percent moves when that file is written.",
+        "readingSpeed": "Reading {{speed}} MB/s",
+        "title": "Downloads",
+        "writing": "Writing to disk",
+        "writingHint": "Still writing files to disk. That time was only an estimate for the download.",
+        "written": "written"
     },
     "emptyLibrary": {
         "noGames": "Your library is empty.<br /><br />Click <4>here</4> to log in with your Epic, GOG.com, or Amazon accounts. Then, your games will show up here in the Library.<br /><br />To use games or apps from other sources, click <br /> to add them manually.",
@@ -469,6 +475,31 @@
     },
     "globalSettings": "Global Settings",
     "GOG": "GOG",
+    "gog-auto-import": {
+        "add-folder": "Add folder",
+        "automatic": "Import games automatically when Heroic starts or a drive with a library folder is connected",
+        "button": "Import GOG Games",
+        "connected": "Connected",
+        "description": "Add the folders or drives where your GOG games are installed. Heroic scans everything inside them and imports every game it finds that is in your GOG account. Like Steam library folders, they are remembered even on external drives.",
+        "disconnected": "Drive not connected",
+        "found-selected": "{{found}} games found, {{selected}} selected",
+        "import_one": "Import {{count}} game(s)",
+        "import_other": "Import {{count}} game(s)",
+        "progress": "{{done}} of {{total}} imported",
+        "remove-folder": "Remove folder",
+        "rescan": "Rescan",
+        "scan": "Scan",
+        "select-folder": "Select a folder with games",
+        "status": {
+            "importable": "Ready to import",
+            "importing": "Importing…",
+            "installed": "Already in Heroic",
+            "moved": "Moved, will be re-linked",
+            "not-owned": "Not in your GOG account",
+            "unsupported": "Not supported on this OS"
+        },
+        "title": "Import installed GOG games"
+    },
     "gog-store": "GOG Store",
     "header": {
         "categories": "Categories",
@@ -662,6 +693,11 @@
                 }
             },
             "reparing": "Finished Repairing"
+        },
+        "gogAutoImport": {
+            "summary": "{{imported}} game(s) imported",
+            "summaryWithFailures": "{{imported}} game(s) imported, {{failed}} failed",
+            "title": "GOG auto-import"
         },
         "import": {
             "failed": "Importing Failed"
@@ -897,7 +933,7 @@
         "library_top_section": "Library Top Section",
         "log": {
             "descriptiveNames": {
-                "game-log": "Game log of {{gameTitle}}",
+                "game-log-typed": "{{type}} log of {{gameTitle}}",
                 "gog": "GOG log",
                 "heroic": "General Heroic log",
                 "legendary": "Epic Games / Legendary log",
@@ -909,8 +945,17 @@
             "instructions_title": "How to report a problem?",
             "join-heroic-discord": "Join our Discord",
             "no-file": "No log file found",
+            "no-file-launch": "No launch log found. An update writes to the Update log instead — open that tab above, or look under ~/.local/state/Heroic/logs/games/<id>_gog/update.log",
             "show-in-folder": "Show log file in folder",
             "show-uploads": "Show uploaded log files",
+            "types": {
+                "import": "Import",
+                "install": "Install",
+                "launch": "Launch",
+                "repair": "Repair",
+                "setup": "Setup",
+                "update": "Update"
+            },
             "upload": {
                 "actions": "Actions",
                 "button": "Upload log file",

@@ -20,6 +20,7 @@ import {
   GameInfo,
   GameSettings,
   ExecResult,
+  InstallPlatform,
   InstallArgs,
   InstalledInfo,
   InstallProgress,
@@ -27,6 +28,7 @@ import {
   GOGAchievement
 } from 'common/types'
 import { existsSync, rmSync } from 'graceful-fs'
+import { GogWriteProgress } from './write_progress'
 import {
   achievementStore,
   configStore,
@@ -200,7 +202,11 @@ export default class GOGGame implements Game {
     )
   }
 
-  async importGame(folderPath: string): Promise<ExecResult> {
+  async importGame(
+    folderPath: string,
+    _platform?: InstallPlatform,
+    options?: { lightweight?: boolean }
+  ): Promise<ExecResult> {
     const res = await libraryManagerMap['gog'].runRunnerCommand(
       ['import', folderPath],
       {
@@ -219,10 +225,17 @@ export default class GOGGame implements Game {
     }
 
     try {
-      await libraryManagerMap['gog'].importGame(
+      const saved = await libraryManagerMap['gog'].importGame(
         JSON.parse(res.stdout),
-        folderPath
+        folderPath,
+        options
       )
+      if (!saved) {
+        return {
+          ...res,
+          error: `Could not record imported game ${this.id}`
+        }
+      }
       this.addShortcuts()
 
       if (isLinux && this.isNative()) {
@@ -236,70 +249,31 @@ export default class GOGGame implements Game {
     return res
   }
 
-  private defaultTmpProgress = () => ({
-    bytes: '',
-    eta: '',
-    percent: undefined,
-    diskSpeed: undefined,
-    downSpeed: undefined
-  })
-  private tmpProgress: InstallProgress | undefined
+  // gogdl's percent only moves when a patch window finishes. This follows
+  // the writer process's bytes so the bar keeps moving during that window.
+  private writeProgress = new GogWriteProgress()
 
   onInstallOrUpdateOutput(
     action: 'installing' | 'updating',
     data: string,
     /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-    totalDownloadSize = -1
+    totalDownloadSize = -1,
+    child?: { pid?: number }
   ) {
-    if (!this.tmpProgress) {
-      this.tmpProgress = this.defaultTmpProgress()
-    }
-    const progress = this.tmpProgress
+    if (child?.pid) this.writeProgress.setPid(child.pid)
+    const progress = this.writeProgress.ingest(data)
+    if (progress) this.publishInstallProgress(action, progress, true)
+    this.writeProgress.watch((live) => {
+      this.publishInstallProgress(action, live, false)
+    })
+  }
 
-    // parse log for percent
-    if (!progress.percent) {
-      const percentMatch = data.match(/Progress: (\d+\.\d+) /m)
-
-      progress.percent = !Number.isNaN(Number(percentMatch?.at(1)))
-        ? Number(percentMatch?.at(1))
-        : undefined
-    }
-
-    // parse log for eta
-    if (progress.eta === '') {
-      const etaMatch = data.match(/ETA: (\d\d:\d\d:\d\d)/m)
-      progress.eta = etaMatch && etaMatch?.length >= 2 ? etaMatch[1] : ''
-    }
-
-    // parse log for game download progress
-    if (progress.bytes === '') {
-      const bytesMatch = data.match(/Downloaded: (\S+) MiB/m)
-      progress.bytes =
-        bytesMatch && bytesMatch?.length >= 2 ? `${bytesMatch[1]}MB` : ''
-    }
-
-    // parse log for download speed
-    if (!progress.downSpeed) {
-      const downSpeedMBytes = data.match(/Download\t- (\S+.) MiB/m)
-      progress.downSpeed = !Number.isNaN(Number(downSpeedMBytes?.at(1)))
-        ? Number(downSpeedMBytes?.at(1))
-        : undefined
-    }
-
-    // parse disk write speed
-    if (!progress.diskSpeed) {
-      const diskSpeedMBytes = data.match(/Disk\t- (\S+.) MiB/m)
-      progress.diskSpeed = !Number.isNaN(Number(diskSpeedMBytes?.at(1)))
-        ? Number(diskSpeedMBytes?.at(1))
-        : undefined
-    }
-
-    // only send to frontend if all values are updated
-    if (
-      Object.values(progress).every(
-        (value) => !(value === undefined || value === '')
-      )
-    ) {
+  private publishInstallProgress(
+    action: 'installing' | 'updating',
+    progress: InstallProgress,
+    log: boolean
+  ) {
+    if (log) {
       logInfo(
         [
           `Progress for ${this.getGameInfo().title}:`,
@@ -308,17 +282,14 @@ export default class GOGGame implements Game {
         ],
         LogPrefix.Gog
       )
-
-      sendProgressUpdate({
-        appName: this.id,
-        runner: 'gog',
-        status: action,
-        progress: progress
-      })
-
-      // reset
-      this.tmpProgress = this.defaultTmpProgress()
     }
+
+    sendProgressUpdate({
+      appName: this.id,
+      runner: 'gog',
+      status: action,
+      progress
+    })
   }
 
   async install({
@@ -378,8 +349,8 @@ export default class GOGGame implements Game {
       commandParts.push('--password', privateBranchPassword)
     }
 
-    const onOutput = (data: string) => {
-      this.onInstallOrUpdateOutput('installing', data)
+    const onOutput = (data: string, child?: { pid?: number }) => {
+      this.onInstallOrUpdateOutput('installing', data, -1, child)
     }
 
     const installLogWriter = await createGameLogWriter(
@@ -387,12 +358,18 @@ export default class GOGGame implements Game {
       'gog',
       'install'
     )
-    const res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
-      abortId: this.id,
-      logWriters: [installLogWriter],
-      onOutput,
-      logMessagePrefix: `Installing ${this.id}`
-    })
+    this.writeProgress.stop()
+    let res: ExecResult
+    try {
+      res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
+        abortId: this.id,
+        logWriters: [installLogWriter],
+        onOutput,
+        logMessagePrefix: `Installing ${this.id}`
+      })
+    } finally {
+      this.writeProgress.stop()
+    }
 
     if (res.abort) {
       return { status: 'abort' }
@@ -1149,17 +1126,23 @@ export default class GOGGame implements Game {
       commandParts.push('--password', privateBranchPassword)
     }
 
-    const onOutput = (data: string) => {
-      this.onInstallOrUpdateOutput('updating', data)
+    const onOutput = (data: string, child?: { pid?: number }) => {
+      this.onInstallOrUpdateOutput('updating', data, -1, child)
     }
 
     const updateLogWriter = await createGameLogWriter(this.id, 'gog', 'update')
-    const res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
-      abortId: this.id,
-      logWriters: [updateLogWriter],
-      onOutput,
-      logMessagePrefix: `Updating ${this.id}`
-    })
+    this.writeProgress.stop()
+    let res: ExecResult
+    try {
+      res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
+        abortId: this.id,
+        logWriters: [updateLogWriter],
+        onOutput,
+        logMessagePrefix: `Updating ${this.id}`
+      })
+    } finally {
+      this.writeProgress.stop()
+    }
 
     if (res.abort) {
       return { status: 'done' }

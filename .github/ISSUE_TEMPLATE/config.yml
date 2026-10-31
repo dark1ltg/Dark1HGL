@@ -1,5 +1,8 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: Discord
-    url: https://discord.com/invite/rHJ2uqdquK
-    about: Have a issue with running a game? Please ask on our Discord instead
+  - name: Dark1HGL releases
+    url: https://github.com/dark1ltg/Dark1HGL/releases
+    about: Download the x86_64 Linux AppImage
+  - name: Upstream Heroic (official)
+    url: https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher
+    about: This is not official Heroic — go upstream for Heroic Discord / wiki support

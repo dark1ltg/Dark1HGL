@@ -1,24 +1,28 @@
 name: Bug report
-description: "Things aren't working right? Create a bug report to let us know!"
+description: Something broken in Dark1HGL? File it here.
 labels: bug:unconfirmed
 body:
   - type: markdown
     attributes:
       value: |-
-        ## Important: If this is a game issue, check out [our Discord server](https://discord.gg/rHJ2uqdquK) and [our Wiki](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki/Troubleshooting) to get help instead!
-        Examples for valid issues: "Heroic doesn't open", "This button is out of place", "Heroic closes unexpectedly", "Installs get interrupted"
+        ## Dark1HGL (not official Heroic)
+
+        This tracker is for **[dark1ltg/Dark1HGL](https://github.com/dark1ltg/Dark1HGL)** — GOG library folders / AppImage builds.
+
+        - Game won't run under Wine/Proton? Check [upstream Heroic troubleshooting](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki/Troubleshooting) or their Discord; we may still take launcher bugs that reproduce here.
+        - Attach **update.log** / **install.log** from Report a problem when the issue is a GOG download/update hang.
   - type: textarea
     id: bug_description
     attributes:
       label: Describe the bug
-      description: 'A clear and concise description of what the bug is.'
+      description: Clear description of what went wrong in Dark1HGL.
     validations:
       required: true
   - type: textarea
     id: heroic_log
     attributes:
       label: Add logs
-      description: 'Open up the "Settings" tab -> "Log" tab -> "Copy log content to clipboard" and paste it into here'
+      description: Settings → Log → copy, and/or paste update.log / install.log / launch.log from Report a problem
       render: text
     validations:
       required: true
@@ -26,50 +30,34 @@ body:
     id: to_reproduce
     attributes:
       label: Steps to reproduce
-      description: 'Steps to reproduce this behavior'
+      description: Steps to reproduce
       value: |-
-        1. Go to '...'
-        2. Click on '...'
-        3. Scroll down to '...'
-        4. See error
+        1. ...
+        2. ...
+        3. ...
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
       label: Expected behavior
-      description: 'A clear and concise description of what you expected to happen.'
+  - type: input
+    id: dark1hgl_version
+    attributes:
+      label: Dark1HGL / AppImage version
+      description: e.g. 2.22.5-gog.5 (Help → About or the release tag you installed)
     validations:
       required: true
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: Screenshots
-      description: If applicable, add screenshots to help explain your problem.
-  - type: markdown
-    attributes:
-      value: |-
-        ## Latest stable version of Heroic is v2.22.4. Please, update Heroic before reporting a bug if you have an older version.
   - type: dropdown
-    id: heroic_version
+    id: platform
     attributes:
-      label: Heroic Version
+      label: Platform
       options:
-        - Latest Stable
-        - Latest Stable (Flatpak)
-        - main branch from GitHub
+        - Linux x86_64 (AppImage)
+        - Other (please describe in Additional information)
     validations:
       required: true
   - type: textarea
-    id: systeminfo
-    attributes:
-      label: System Information
-      value: |-
-        - OS [e. g. "Ubuntu"]:
-    validations:
-      required: true
-  - type: textarea
-    id: additional_info
+    id: additional
     attributes:
       label: Additional information
-      description: Add any other context about the problem here.
