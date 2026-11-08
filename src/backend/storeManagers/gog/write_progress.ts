@@ -90,6 +90,9 @@ type WriteProgressIO = {
   bytes?: (pid: number) => ProcessIo | undefined
 }
 
+/** No written-byte advance, logged throughput, or process IO for this long → hung. */
+export const GOG_WRITE_STALL_MS = 90_000
+
 /**
  * GOG's reported percent is bytes written, but a patch only publishes that
  * number when an xdelta window finishes. On an external drive most of that
@@ -107,6 +110,8 @@ export class GogWriteProgress {
   private total = 0
   private hasReport = false
   private reportedAt = 0
+  /** -1 until the first real activity; 0 is a valid clock value in tests. */
+  private lastActivityAt = -1
   private lastEta = ''
   private loggedDiskSpeed = 0
   private loggedDownSpeed = 0
@@ -117,6 +122,7 @@ export class GogWriteProgress {
   private baseline = new Map<number, ProcessIo>()
   private timer: NodeJS.Timeout | undefined
   private onSample: ((progress: InstallProgress) => void) | undefined
+  private onTick: (() => void) | undefined
 
   constructor(io: WriteProgressIO = {}) {
     this.now = io.now ?? (() => Date.now())
@@ -126,6 +132,16 @@ export class GogWriteProgress {
 
   setPid(pid: number | undefined) {
     if (pid && pid !== this.pid) this.pid = pid
+  }
+
+  /**
+   * True once we have seen real progress and then nothing (no Progress
+   * advance, no logged download/disk speed, no process IO) for timeoutMs.
+   * Does not invent a gogdl root cause — only detects the hang.
+   */
+  isStalled(timeoutMs = GOG_WRITE_STALL_MS): boolean {
+    if (!this.hasReport || this.lastActivityAt < 0) return false
+    return this.now() - this.lastActivityAt >= timeoutMs
   }
 
   ingest(data: string): InstallProgress | undefined {
@@ -141,7 +157,10 @@ export class GogWriteProgress {
     }
 
     const progress = data.match(/Progress:\s+(\d+(?:\.\d+)?)\s+(\d+)\/(\d+)/)
-    if (!progress?.[2] || !progress[3]) return
+    if (!progress?.[2] || !progress[3]) {
+      this.noteLoggedThroughput()
+      return
+    }
     const written = Number(progress[2])
     const total = Number(progress[3])
     if (!Number.isFinite(written) || !Number.isFinite(total) || total <= 0) {
@@ -160,10 +179,14 @@ export class GogWriteProgress {
     this.total = total
     const advanced = !this.hasReport || written > this.reportedWritten
     this.hasReport = true
-    if (!advanced) return
+    if (!advanced) {
+      this.noteLoggedThroughput()
+      return
+    }
 
     this.reportedWritten = written
     this.reportedAt = this.now()
+    this.noteActivity()
     this.rebase()
     return this.snapshot(written, this.loggedDiskSpeed, this.lastEta, 0)
   }
@@ -190,6 +213,7 @@ export class GogWriteProgress {
     const busy = readDelta > 64 * 1024 || writeDelta > 64 * 1024
     if (!moved && !busy) return
 
+    this.noteActivity()
     const remaining = this.total - displayed
     const eta =
       writeSpeed > 0.05
@@ -198,12 +222,16 @@ export class GogWriteProgress {
     return this.snapshot(displayed, writeSpeed, eta, readSpeed)
   }
 
-  watch(onSample: (progress: InstallProgress) => void) {
+  watch(onSample: (progress: InstallProgress) => void, onTick?: () => void) {
     if (this.timer || !this.pid || !this.total) return
     this.onSample = onSample
+    this.onTick = onTick
     this.timer = setInterval(() => {
       const progress = this.sample()
       if (progress) this.onSample?.(progress)
+      // Stall checks must run even when sample() has nothing new to publish
+      // (silent 0-IO hang with no Progress advance).
+      this.onTick?.()
     }, 1000)
     this.timer.unref?.()
   }
@@ -212,11 +240,13 @@ export class GogWriteProgress {
     if (this.timer) clearInterval(this.timer)
     this.timer = undefined
     this.onSample = undefined
+    this.onTick = undefined
     this.pid = undefined
     this.reportedWritten = 0
     this.total = 0
     this.hasReport = false
     this.reportedAt = 0
+    this.lastActivityAt = -1
     this.lastEta = ''
     this.loggedDiskSpeed = 0
     this.loggedDownSpeed = 0
@@ -225,6 +255,16 @@ export class GogWriteProgress {
     this.lastReadExtra = 0
     this.lastWriteExtra = 0
     this.baseline.clear()
+  }
+
+  private noteActivity() {
+    this.lastActivityAt = this.now()
+  }
+
+  private noteLoggedThroughput() {
+    if (this.loggedDiskSpeed > 0.05 || this.loggedDownSpeed > 0.05) {
+      this.noteActivity()
+    }
   }
 
   private rebase() {

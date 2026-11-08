@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync
@@ -112,6 +113,43 @@ describe('GOG library folders', () => {
     writeFileSync(join(moved, LIBRARY_MARKER_FILE), JSON.stringify({ id }))
     expect(await syncMarkedFolder(moved)).toBe('relocated')
     expect(listLibraryFolders()).toEqual([{ path: moved, available: true }])
+  })
+
+  it('relocates when the old path is an empty leftover directory', async () => {
+    const folder = join(root, 'DriveE', 'GOG Games')
+    const moved = join(root, 'DriveF', 'GOG Games')
+    mkdirSync(folder, { recursive: true })
+    await addLibraryFolder(folder)
+    const { id } = JSON.parse(
+      readFileSync(join(folder, LIBRARY_MARKER_FILE), 'utf-8')
+    )
+    // Remount left an empty dir (and maybe only the marker) at the old path
+    for (const name of readdirSync(folder)) {
+      if (name !== LIBRARY_MARKER_FILE) {
+        rmSync(join(folder, name), { recursive: true, force: true })
+      }
+    }
+
+    mkdirSync(moved, { recursive: true })
+    writeFileSync(join(moved, LIBRARY_MARKER_FILE), JSON.stringify({ id }))
+    expect(await syncMarkedFolder(moved)).toBe('relocated')
+    expect(listLibraryFolders()).toEqual([{ path: moved, available: true }])
+  })
+
+  it('does not relocate when the old path still has game content', async () => {
+    const folder = join(root, 'DriveE', 'GOG Games')
+    const moved = join(root, 'DriveF', 'GOG Games')
+    mkdirSync(folder, { recursive: true })
+    await addLibraryFolder(folder)
+    const { id } = JSON.parse(
+      readFileSync(join(folder, LIBRARY_MARKER_FILE), 'utf-8')
+    )
+    mkdirSync(join(folder, 'Some Game'))
+
+    mkdirSync(moved, { recursive: true })
+    writeFileSync(join(moved, LIBRARY_MARKER_FILE), JSON.stringify({ id }))
+    expect(await syncMarkedFolder(moved)).toBe('known')
+    expect(listLibraryFolders()).toEqual([{ path: folder, available: true }])
   })
 
   it('reports folders on disconnected drives as unavailable', () => {

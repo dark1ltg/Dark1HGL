@@ -140,4 +140,44 @@ describe('GogWriteProgress', () => {
     expect(progress.sample()?.writtenBytes).toBe(10000)
     expect(progress.sample()).toBeUndefined()
   })
+
+  test('reports a stall after no written advance, throughput, or process IO', () => {
+    const writes = new Map([[10, 0]])
+    const { progress, at } = harness(writes)
+    progress.ingest(
+      [
+        'Progress: 0.69 1000/100000, Running for: 00:00:01, ETA: 00:10:00',
+        'Download\t- 0.00 MiB/s (raw) / 0.00 MiB/s (decompressed)',
+        'Disk\t- 0.00 MiB/s (write) / 0.00 MiB/s (read)'
+      ].join('\n')
+    )
+    expect(progress.isStalled(90_000)).toBe(false)
+
+    at(60_000)
+    progress.ingest(
+      [
+        'Progress: 0.69 1000/100000, Running for: 00:01:00, ETA: 00:10:00',
+        'Download\t- 0.00 MiB/s (raw) / 0.00 MiB/s (decompressed)',
+        'Disk\t- 0.00 MiB/s (write) / 0.00 MiB/s (read)'
+      ].join('\n')
+    )
+    expect(progress.isStalled(90_000)).toBe(false)
+
+    at(90_000)
+    expect(progress.isStalled(90_000)).toBe(true)
+  })
+
+  test('does not stall while logged disk throughput is still moving', () => {
+    const writes = new Map([[10, 0]])
+    const { progress, at } = harness(writes)
+    progress.ingest(
+      'Progress: 10.00 1000/10000, ETA: 00:01:00\nDisk\t- 0.00 MiB/s (write)'
+    )
+    at(50_000)
+    progress.ingest(
+      'Progress: 10.00 1000/10000, ETA: 00:01:00\nDisk\t- 2.50 MiB/s (write)'
+    )
+    at(100_000)
+    expect(progress.isStalled(90_000)).toBe(false)
+  })
 })
