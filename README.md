@@ -37,7 +37,7 @@ Epic/Amazon/Wine code still exists in the tree (inherited from Heroic). **This p
 2. `chmod +x Heroic-*-linux-x86_64.AppImage`
 3. Run it
 
-**Current latest:** [2.22.5-gog.5](https://github.com/dark1ltg/Dark1HGL/releases/tag/v2.22.5-gog.5) — includes library folders through gog.4 plus queue/progress/redistributable work and vendored gogdl 1.3.2.
+**Current latest:** [2.22.5-gog.6](https://github.com/dark1ltg/Dark1HGL/releases/tag/v2.22.5-gog.6) — stall detect/abort, cancel/remount/progress-label fixes, Modify Install errors, plus everything in gog.5 (library folders, queue/progress, vendored gogdl 1.3.2).
 
 ## Development
 

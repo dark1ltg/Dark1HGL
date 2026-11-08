@@ -15,7 +15,7 @@ Not an official Heroic release channel. Upstream Discord / Patreon / Flathub do 
 
 ## Current release
 
-- Version: **2.22.5-gog.5**
+- Version: **2.22.5-gog.6**
 - Releases: https://github.com/dark1ltg/Dark1HGL/releases/latest
 
 ## Features vs upstream Heroic
@@ -23,7 +23,7 @@ Not an official Heroic release channel. Upstream Discord / Patreon / Flathub do 
 ### GOG library folders & auto-import
 
 - Library folders + marker; scan installed GOG games
-- Drive watcher: auto-import on connect; re-link moved installs
+- Drive watcher: auto-import on connect; re-link moved installs (including empty leftover paths)
 - Sequential batch import with found / selected / success counts; **Rescan**
 - Deep scans; keep selection across scans
 - Unplugged drives are not treated as “moved”
@@ -34,7 +34,9 @@ Not an official Heroic release channel. Upstream Discord / Patreon / Flathub do 
 
 - Game updates ahead of redistributables; running games stay visible in the queue
 - Redistributable sync only when needed
-- Live write progress; disk reads when percent stalls
+- Live write progress; disk reads when percent stalls; **no progress** when stalled (not “writing to disk”)
+- Silent gogdl 0-IO stalls detected (~90s) and aborted with an error (root hang may still need wipe/repair)
+- Cancel/pause no longer reports a finished update; cancel is more reliable if metadata loads mid-update
 - Report a problem: update.log / install.log (not only launch.log)
 
 ### gogdl
