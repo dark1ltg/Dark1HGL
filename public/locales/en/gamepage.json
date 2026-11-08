@@ -7,6 +7,9 @@
         },
         "choose": "Choose",
         "close": "Close",
+        "error": {
+            "modify-install-info": "Could not load install details from GOG. Check your connection and try again."
+        },
         "importpath": "Choose Game Folder to import",
         "move": {
             "message": "This can take a long time, are you sure?",

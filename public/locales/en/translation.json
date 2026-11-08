@@ -88,6 +88,8 @@
                 "message": "generic error message",
                 "title": "Select EXE to Run"
             },
+            "install-stalled": "The install stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again.",
+            "install-stalled-title": "Install stalled",
             "launchAborted": "Launch aborted",
             "legendary": {
                 "generic": "An error has occurred! Try to Logout and Login on your Epic account. {{newline}}  {{error}}"
@@ -112,6 +114,8 @@
                 "message": "Something went wrong with the update, please check the logs or try again later!",
                 "title": "Update Error"
             },
+            "update-stalled": "The update stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again, or wipe the game's unfinished update files and repair/reinstall.",
+            "update-stalled-title": "Update stalled",
             "winetricks": {
                 "message": "Winetricks returned the following error during execution:{{newLine}}{{error}}",
                 "title": "Winetricks error"
@@ -436,9 +440,9 @@
         },
         "readingHint": "Reading the installed game from disk. The percent moves when that file is written.",
         "readingSpeed": "Reading {{speed}} MB/s",
+        "stalled": "No progress",
+        "stalledHint": "No download or disk activity for a while. The update may be stuck.",
         "title": "Downloads",
-        "writing": "Writing to disk",
-        "writingHint": "Still writing files to disk. That time was only an estimate for the download.",
         "written": "written"
     },
     "emptyLibrary": {
