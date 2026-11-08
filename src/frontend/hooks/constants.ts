@@ -51,8 +51,8 @@ export function getStatusLabel({
             )
           : writingToDisk
             ? t(
-                'gamepage:status.updatingWriting',
-                'Updating Game {{percent}}% - writing to disk',
+                'gamepage:status.updatingStalled',
+                'Updating Game {{percent}}% - no progress',
                 { percent: roundedPercent }
               )
             : `${t('gamepage:status.updating')} ${roundedPercent}%`,
@@ -75,8 +75,8 @@ export function getStatusLabel({
             )
           : writingToDisk
             ? t(
-                'gamepage:status.installingWriting',
-                'Downloading {{percent}}% - writing to disk',
+                'gamepage:status.installingStalled',
+                'Downloading {{percent}}% - no progress',
                 { percent: roundedPercent }
               )
             : `${t('gamepage:status.downloading', 'Downloading')} ${roundedPercent}%`,

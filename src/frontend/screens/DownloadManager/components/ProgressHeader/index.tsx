@@ -24,7 +24,7 @@ export default function ProgressHeader(props: {
   const sampleSize = 100
   const { t } = useTranslation()
   const [progress] = hasProgress(props.appName, props.runner)
-  const writingToDisk = useProgressIsStale(progress, props.state === 'running')
+  const progressStale = useProgressIsStale(progress, props.state === 'running')
   const writing = (progress.totalBytes ?? 0) > 0
   const reading =
     (progress.readSpeed ?? 0) >= 1 && (progress.diskSpeed ?? 0) < 1
@@ -134,7 +134,7 @@ export default function ProgressHeader(props: {
                 value={progress.percent || 0}
               />
             </Box>
-            <Box sx={{ minWidth: reading || writingToDisk ? 168 : 35 }}>
+            <Box sx={{ minWidth: reading || progressStale ? 168 : 35 }}>
               <Typography
                 variant="subtitle1"
                 sx={{ whiteSpace: 'nowrap' }}
@@ -144,10 +144,10 @@ export default function ProgressHeader(props: {
                         'download-manager.readingHint',
                         'Reading the installed game from disk. The percent moves when that file is written.'
                       )
-                    : writingToDisk
+                    : progressStale
                       ? t(
-                          'download-manager.writingHint',
-                          'Still writing files to disk. That time was only an estimate for the download.'
+                          'download-manager.stalledHint',
+                          'No download or disk activity for a while. The update may be stuck.'
                         )
                       : t('download-manager.ETA', 'Estimated Time')
                 }
@@ -159,8 +159,8 @@ export default function ProgressHeader(props: {
                         'Reading {{speed}} MB/s',
                         { speed: Math.round(progress.readSpeed ?? 0) }
                       )
-                    : writingToDisk
-                      ? t('download-manager.writing', 'Writing to disk')
+                    : progressStale
+                      ? t('download-manager.stalled', 'No progress')
                       : (progress.eta ?? '00:00:00')
                   : 'Paused'}
               </Typography>

@@ -7,6 +7,9 @@
         },
         "choose": "Choose",
         "close": "Close",
+        "error": {
+            "modify-install-info": "Could not load install details from GOG. Check your connection and try again."
+        },
         "importpath": "Choose Game Folder to import",
         "move": {
             "message": "This can take a long time, are you sure?",
@@ -306,10 +309,11 @@
         "installing": "Installing",
         "installingDetail": "Downloading {{percent}}% · {{detail}}",
         "installingReading": "Downloading {{percent}}% · {{detail}} · reading {{speed}} MB/s",
-        "installingWriting": "Downloading {{percent}}% - writing to disk",
+        "installingStalled": "Downloading {{percent}}% - no progress",
         "launching": "Launching",
         "moving": "Moving Installation, please wait",
         "moving-files": "Moving file '{{file}}': {{percent}}%",
+        "noProgress": "no progress",
         "notinstalled": "This game is not installed",
         "notSupported": "Not supported",
         "notSupportedGame": "Not Supported",
@@ -325,7 +329,7 @@
         "updating": "Updating Game",
         "updatingDetail": "Updating Game {{percent}}% · {{detail}}",
         "updatingReading": "Updating Game {{percent}}% · {{detail}} · reading {{speed}} MB/s",
-        "updatingWriting": "Updating Game {{percent}}% - writing to disk",
+        "updatingStalled": "Updating Game {{percent}}% - no progress",
         "winetricks": "Applying Winetricks fixes"
     },
     "submenu": {

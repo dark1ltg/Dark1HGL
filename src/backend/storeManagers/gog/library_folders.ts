@@ -80,6 +80,27 @@ async function readMarker(
   }
 }
 
+/**
+ * True when the stored path is gone, or is only an empty leftover (no games)
+ * after a remount — so syncMarkedFolder can relocate to the live path.
+ */
+async function isAbandonedLibraryPath(
+  path: string,
+  expectedId: string
+): Promise<boolean> {
+  if (!existsSync(path)) return true
+  try {
+    const marker = await readMarker(path)
+    if (!marker?.id || marker.id !== expectedId) return true
+    const entries = await readdir(path)
+    return entries.every(
+      (name) => name === LIBRARY_MARKER_FILE || name.startsWith('.')
+    )
+  } catch {
+    return true
+  }
+}
+
 function writeMarker(folder: string, id: string) {
   return writeFile(
     join(folder, LIBRARY_MARKER_FILE),
@@ -171,7 +192,9 @@ export async function syncMarkedFolder(
   const byId = id ? folders.find((entry) => entry.id === id) : undefined
   if (byId) {
     if (byId.path === folder) return 'known'
-    if (!existsSync(byId.path)) {
+    // Remounts leave an empty directory at the old path on some systems.
+    // existsSync alone then blocks relocate — treat abandoned leftovers as gone.
+    if (await isAbandonedLibraryPath(byId.path, id)) {
       const oldPath = byId.path
       saveFolders(
         folders.map((entry) =>

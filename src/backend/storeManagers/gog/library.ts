@@ -782,7 +782,7 @@ export default class GOGLibraryManager implements LibraryManager {
       }
     }
 
-    if (!isOnline) {
+    if (!isOnline()) {
       logWarning('App offline, unable to get install info')
       return
     }
@@ -813,8 +813,9 @@ export default class GOGLibraryManager implements LibraryManager {
       commandParts.push('--password', privateBranchPassword)
     }
 
+    // Keep install/update cancel handles intact — never reuse the game id.
     const res = await this.runRunnerCommand(commandParts, {
-      abortId: appName,
+      abortId: `${appName}-info`,
       logMessagePrefix: 'Getting game metadata'
     })
 

@@ -191,7 +191,7 @@ export async function getRequiredRedistList(): Promise<string[]> {
 }
 
 export async function updateRedist(redistToSync: string[]): Promise<{
-  status: 'done' | 'error'
+  status: 'done' | 'error' | 'abort'
 }> {
   const { maxWorkers } = GlobalConfig.get().getSettings()
   const workers = maxWorkers ? ['--max-workers', `${maxWorkers}`] : []
@@ -222,7 +222,7 @@ export async function updateRedist(redistToSync: string[]): Promise<{
   })
 
   if (res.abort) {
-    return { status: 'done' }
+    return { status: 'abort' }
   }
 
   if (res.error) {

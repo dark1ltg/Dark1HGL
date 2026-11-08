@@ -33,6 +33,8 @@ export default function GOGModifyInstallModal({
   const { t: tr } = useTranslation()
   const isLinux = gameInfo.install.platform === 'linux'
   const [gameInstallInfo, setGameInstallInfo] = useState<GogInstallInfo>()
+  const [installInfoError, setInstallInfoError] = useState<string | null>(null)
+  const [installInfoRetry, setInstallInfoRetry] = useState(0)
 
   const [installLanguages, setInstallLanguages] = useState<string[]>([])
   const [installLanguage, setInstallLanguage] = useState<string>(
@@ -139,22 +141,45 @@ export default function GOGModifyInstallModal({
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     async function get() {
-      const installInfo = (await getInstallInfo(
-        gameInfo.app_name,
-        'gog',
-        gameInfo.install.platform || 'windows',
-        undefined,
-        branch || gameInfo.install.branch
-      )) as GogInstallInfo | null
-      if (!installInfo) {
-        // TODO: Handle error
-        return
+      setInstallInfoError(null)
+      try {
+        const installInfo = (await getInstallInfo(
+          gameInfo.app_name,
+          'gog',
+          gameInfo.install.platform || 'windows',
+          undefined,
+          branch || gameInfo.install.branch
+        )) as GogInstallInfo | null
+        if (cancelled) return
+        if (!installInfo) {
+          setInstallInfoError(
+            t(
+              'box.error.modify-install-info',
+              'Could not load install details from GOG. Check your connection and try again.'
+            )
+          )
+          return
+        }
+        setGameInstallInfo(installInfo)
+      } catch (error) {
+        if (cancelled) return
+        setInstallInfoError(
+          error instanceof Error
+            ? error.message
+            : t(
+                'box.error.modify-install-info',
+                'Could not load install details from GOG. Check your connection and try again.'
+              )
+        )
       }
-      setGameInstallInfo(installInfo)
     }
     get()
-  }, [branch, savedBranchPassword])
+    return () => {
+      cancelled = true
+    }
+  }, [branch, savedBranchPassword, installInfoRetry, gameInfo, t])
 
   useEffect(() => {
     if (gameInstallInfo && 'builds' in gameInstallInfo.manifest) {
@@ -418,6 +443,16 @@ export default function GOGModifyInstallModal({
         {tr('box.apply', 'Apply')}
       </button>
     </>
+  ) : installInfoError ? (
+    <div className="ModifyInstall__error">
+      <p>{installInfoError}</p>
+      <button
+        className="button is-primary"
+        onClick={() => setInstallInfoRetry((n) => n + 1)}
+      >
+        {tr('button.retry', 'Retry')}
+      </button>
+    </div>
   ) : (
     <UpdateComponent />
   )

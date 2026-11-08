@@ -13,7 +13,8 @@ import {
   sendGameStatusUpdate,
   getPathDiskSize,
   getCometBin,
-  axiosClient
+  axiosClient,
+  killPattern
 } from '../../utils'
 import {
   ExtraInfo,
@@ -45,6 +46,7 @@ import {
   createGameLogWriter,
   getRunnerLogWriter
 } from 'backend/logger'
+import { callAbortController } from 'backend/utils/aborthandler/aborthandler'
 import { GOGUser } from './user'
 import {
   getKnownFixesEnvVariables,
@@ -244,6 +246,10 @@ export default class GOGGame implements Game {
       }
     } catch (error) {
       logError([`Failed to import ${this.id}:`, error], LogPrefix.Gog)
+      return {
+        ...res,
+        error: `Could not record imported game ${this.id}: ${error}`
+      }
     }
 
     return res
@@ -252,6 +258,9 @@ export default class GOGGame implements Game {
   // gogdl's percent only moves when a patch window finishes. This follows
   // the writer process's bytes so the bar keeps moving during that window.
   private writeProgress = new GogWriteProgress()
+  // Set when GogWriteProgress reports a silent 0-IO hang so we can surface
+  // an error instead of treating the abort as a successful finish.
+  private updateStalled = false
 
   onInstallOrUpdateOutput(
     action: 'installing' | 'updating',
@@ -263,9 +272,32 @@ export default class GOGGame implements Game {
     if (child?.pid) this.writeProgress.setPid(child.pid)
     const progress = this.writeProgress.ingest(data)
     if (progress) this.publishInstallProgress(action, progress, true)
-    this.writeProgress.watch((live) => {
-      this.publishInstallProgress(action, live, false)
-    })
+    this.writeProgress.watch(
+      (live) => this.publishInstallProgress(action, live, false),
+      () => this.abortIfWriteStalled(action)
+    )
+    this.abortIfWriteStalled(action)
+  }
+
+  private abortIfWriteStalled(action: 'installing' | 'updating') {
+    if (this.updateStalled || !this.writeProgress.isStalled()) return
+    this.updateStalled = true
+    logError(
+      [
+        `GOG ${action} for ${this.id} stalled (no download or disk activity). Aborting.`
+      ],
+      LogPrefix.Gog
+    )
+    callAbortController(this.id)
+    killPattern(isWindows ? 'gogdl' : this.id)
+  }
+
+  private startWriteProgressWatch(action: 'installing' | 'updating') {
+    this.writeProgress.begin()
+    this.writeProgress.watch(
+      (live) => this.publishInstallProgress(action, live, false),
+      () => this.abortIfWriteStalled(action)
+    )
   }
 
   private publishInstallProgress(
@@ -359,6 +391,8 @@ export default class GOGGame implements Game {
       'install'
     )
     this.writeProgress.stop()
+    this.updateStalled = false
+    this.startWriteProgressWatch('installing')
     let res: ExecResult
     try {
       res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
@@ -369,6 +403,20 @@ export default class GOGGame implements Game {
       })
     } finally {
       this.writeProgress.stop()
+    }
+
+    if (this.updateStalled) {
+      const message = t(
+        'box.error.install-stalled',
+        'The install stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again.'
+      )
+      logError(['Install stalled for', this.id], LogPrefix.Gog)
+      showDialogBoxModalAuto({
+        title: t('box.error.install-stalled-title', 'Install stalled'),
+        message,
+        type: 'ERROR'
+      })
+      return { status: 'error', error: message }
     }
 
     if (res.abort) {
@@ -988,7 +1036,7 @@ export default class GOGGame implements Game {
     language?: string
     dlcs?: string[]
     dependencies?: string[]
-  }): Promise<{ status: 'done' | 'error' }> {
+  }): Promise<{ status: 'done' | 'error' | 'abort'; error?: string }> {
     // TODO: Implement GOG redist as a subclass of GOGGame & move this logic to it
     if (this.id === 'gog-redist') {
       const redist = await getRequiredRedistList()
@@ -1132,6 +1180,8 @@ export default class GOGGame implements Game {
 
     const updateLogWriter = await createGameLogWriter(this.id, 'gog', 'update')
     this.writeProgress.stop()
+    this.updateStalled = false
+    this.startWriteProgressWatch('updating')
     let res: ExecResult
     try {
       res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
@@ -1144,8 +1194,27 @@ export default class GOGGame implements Game {
       this.writeProgress.stop()
     }
 
+    if (this.updateStalled) {
+      const message = t(
+        'box.error.update-stalled',
+        "The update stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again, or wipe the game's unfinished update files and repair/reinstall."
+      )
+      logError(['Update stalled for', this.id], LogPrefix.Gog)
+      showDialogBoxModalAuto({
+        title: t('box.error.update-stalled-title', 'Update stalled'),
+        message,
+        type: 'ERROR'
+      })
+      sendGameStatusUpdate({
+        appName: this.id,
+        runner: 'gog',
+        status: 'done'
+      })
+      return { status: 'error', error: message }
+    }
+
     if (res.abort) {
-      return { status: 'done' }
+      return { status: 'abort' }
     }
 
     if (res.error) {
@@ -1278,8 +1347,11 @@ export default class GOGGame implements Game {
     sendFrontendMessage('pushGameToLibrary', this.getGameInfo())
   }
 
-  // GOGDL now handles the signal, this is no longer needed
   async stop(stopWine = true): Promise<void> {
+    // Fallback when AbortController was overwritten/lost (e.g. concurrent
+    // gogdl info for the same game). Queue cancel already signals abort.
+    killPattern(isWindows ? 'gogdl' : this.id)
+
     if (stopWine && !this.isNative()) {
       const gameSettings = await this.getSettings()
       await shutdownWine(gameSettings)
