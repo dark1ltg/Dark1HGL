@@ -2,6 +2,7 @@ import React, { useContext } from 'react'
 import GameContext from '../../GameContext'
 import { GameInfo, InstallProgress } from 'common/types'
 import { getProgress } from 'frontend/helpers'
+import { useProgressIsStale } from 'frontend/hooks/hasProgress'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { LinearProgress } from '@mui/material'
@@ -10,12 +11,16 @@ interface Props {
   gameInfo: GameInfo
   handleUpdate: () => void
   hasUpdate: boolean
-  progress: InstallProgress
+  progress: InstallProgress & { receivedAt?: number }
 }
 
 const GameStatus = ({ gameInfo, progress, handleUpdate, hasUpdate }: Props) => {
   const { t } = useTranslation('gamepage')
   const { runner, is, statusContext } = useContext(GameContext)
+  const progressStale = useProgressIsStale(
+    progress,
+    !!(is.updating || is.installing)
+  )
 
   function getInstallLabel(
     is_installed: boolean,
@@ -73,13 +78,21 @@ const GameStatus = ({ gameInfo, progress, handleUpdate, hasUpdate }: Props) => {
         ? ''
         : `${
             percent && bytes
-              ? `${percent}% [${bytes}] ${eta ? `ETA: ${eta}` : ''}`
+              ? `${percent}% [${bytes}] ${
+                  progressStale
+                    ? t('status.noProgress', 'no progress')
+                    : eta
+                      ? `ETA: ${eta}`
+                      : ''
+                }`
               : '...'
           }`
 
     if (is.updating && is_installed) {
       if (!currentProgress) {
-        return `${t('status.processing', 'Processing files, please wait')}...`
+        return progressStale
+          ? `${t('status.updating')} — ${t('status.noProgress', 'no progress')}`
+          : `${t('status.processing', 'Processing files, please wait')}...`
       }
       if (eta && eta.includes('verifying')) {
         return `${t('status.reparing')}: ${percent} [${bytes}]`
@@ -89,7 +102,12 @@ const GameStatus = ({ gameInfo, progress, handleUpdate, hasUpdate }: Props) => {
 
     if (!is.updating && (is.installing || is.importing)) {
       if (!currentProgress) {
-        return `${t('status.processing', 'Processing files, please wait')}...`
+        return progressStale
+          ? `${t('status.installing', 'Installing')} — ${t(
+              'status.noProgress',
+              'no progress'
+            )}`
+          : `${t('status.processing', 'Processing files, please wait')}...`
       }
       const statusString = is.importing
         ? t('status.importing', 'Importing')

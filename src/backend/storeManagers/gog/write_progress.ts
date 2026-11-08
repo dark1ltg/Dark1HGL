@@ -134,13 +134,18 @@ export class GogWriteProgress {
     if (pid && pid !== this.pid) this.pid = pid
   }
 
+  /** Mark the start of an install/update so pre-Progress hangs can stall too. */
+  begin() {
+    this.noteActivity()
+  }
+
   /**
-   * True once we have seen real progress and then nothing (no Progress
-   * advance, no logged download/disk speed, no process IO) for timeoutMs.
-   * Does not invent a gogdl root cause — only detects the hang.
+   * True once activity was seen (begin / Progress / throughput / process IO)
+   * and then nothing for timeoutMs. Does not invent a gogdl root cause —
+   * only detects the hang. Arms before the first Progress line as well.
    */
   isStalled(timeoutMs = GOG_WRITE_STALL_MS): boolean {
-    if (!this.hasReport || this.lastActivityAt < 0) return false
+    if (this.lastActivityAt < 0) return false
     return this.now() - this.lastActivityAt >= timeoutMs
   }
 
@@ -223,14 +228,13 @@ export class GogWriteProgress {
   }
 
   watch(onSample: (progress: InstallProgress) => void, onTick?: () => void) {
-    if (this.timer || !this.pid || !this.total) return
     this.onSample = onSample
     this.onTick = onTick
+    // Tick even before pid/Progress exist so pre-Progress hangs still stall.
+    if (this.timer) return
     this.timer = setInterval(() => {
       const progress = this.sample()
       if (progress) this.onSample?.(progress)
-      // Stall checks must run even when sample() has nothing new to publish
-      // (silent 0-IO hang with no Progress advance).
       this.onTick?.()
     }, 1000)
     this.timer.unref?.()

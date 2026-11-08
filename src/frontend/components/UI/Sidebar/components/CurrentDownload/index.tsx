@@ -53,7 +53,10 @@ export default React.memo(function CurrentDownload({
   }, [appName])
 
   function getStatus() {
-    return (progress.percent && progress.percent > 98) || writingToDisk
+    if (writingToDisk) {
+      return t('download-manager.stalled', 'No progress')
+    }
+    return progress.percent && progress.percent > 98
       ? t('status.processing', 'Processing files, please wait')
       : t('status.installing', 'Installing')
   }

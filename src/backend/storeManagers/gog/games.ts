@@ -13,7 +13,8 @@ import {
   sendGameStatusUpdate,
   getPathDiskSize,
   getCometBin,
-  axiosClient
+  axiosClient,
+  killPattern
 } from '../../utils'
 import {
   ExtraInfo,
@@ -245,6 +246,10 @@ export default class GOGGame implements Game {
       }
     } catch (error) {
       logError([`Failed to import ${this.id}:`, error], LogPrefix.Gog)
+      return {
+        ...res,
+        error: `Could not record imported game ${this.id}: ${error}`
+      }
     }
 
     return res
@@ -284,6 +289,15 @@ export default class GOGGame implements Game {
       LogPrefix.Gog
     )
     callAbortController(this.id)
+    killPattern(isWindows ? 'gogdl' : this.id)
+  }
+
+  private startWriteProgressWatch(action: 'installing' | 'updating') {
+    this.writeProgress.begin()
+    this.writeProgress.watch(
+      (live) => this.publishInstallProgress(action, live, false),
+      () => this.abortIfWriteStalled(action)
+    )
   }
 
   private publishInstallProgress(
@@ -378,6 +392,7 @@ export default class GOGGame implements Game {
     )
     this.writeProgress.stop()
     this.updateStalled = false
+    this.startWriteProgressWatch('installing')
     let res: ExecResult
     try {
       res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
@@ -1166,6 +1181,7 @@ export default class GOGGame implements Game {
     const updateLogWriter = await createGameLogWriter(this.id, 'gog', 'update')
     this.writeProgress.stop()
     this.updateStalled = false
+    this.startWriteProgressWatch('updating')
     let res: ExecResult
     try {
       res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
@@ -1331,8 +1347,11 @@ export default class GOGGame implements Game {
     sendFrontendMessage('pushGameToLibrary', this.getGameInfo())
   }
 
-  // GOGDL now handles the signal, this is no longer needed
   async stop(stopWine = true): Promise<void> {
+    // Fallback when AbortController was overwritten/lost (e.g. concurrent
+    // gogdl info for the same game). Queue cancel already signals abort.
+    killPattern(isWindows ? 'gogdl' : this.id)
+
     if (stopWine && !this.isNative()) {
       const gameSettings = await this.getSettings()
       await shutdownWine(gameSettings)

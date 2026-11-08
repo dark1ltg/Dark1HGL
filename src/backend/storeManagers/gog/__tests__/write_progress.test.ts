@@ -180,4 +180,13 @@ describe('GogWriteProgress', () => {
     at(100_000)
     expect(progress.isStalled(90_000)).toBe(false)
   })
+
+  test('can stall before the first Progress line after begin()', () => {
+    const { progress, at } = harness(new Map([[10, 0]]))
+    expect(progress.isStalled(90_000)).toBe(false)
+    progress.begin()
+    expect(progress.isStalled(90_000)).toBe(false)
+    at(90_000)
+    expect(progress.isStalled(90_000)).toBe(true)
+  })
 })

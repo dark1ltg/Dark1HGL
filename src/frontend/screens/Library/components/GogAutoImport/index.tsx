@@ -185,10 +185,9 @@ export default function GogAutoImport() {
   }
 
   const importedCount = importResult?.imported.length ?? 0
-  const selectedCount =
-    importing || (importTotal > 0 && selected.size === 0)
-      ? importTotal
-      : selected.size
+  // While importing, show the batch size; after import (selection cleared)
+  // show 0 selected — not the stale importTotal.
+  const selectedCount = importing ? importTotal : selected.size
 
   const statusLabel = (game: GOGScanResult) => {
     if (activePath === game.path) {
