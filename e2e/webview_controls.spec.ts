@@ -1,6 +1,18 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { electronTest } from './helpers'
 import { WebviewTag } from 'electron'
+
+const WIKI_URL =
+  'https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki'
+// Google appends cache-buster query params (e.g. ?zx=) in CI.
+const GOOGLE_URL = /^https:\/\/www\.google\.com\/(?:\?.*)?$/
+
+function expectUrlBar(page: Page, value: string | RegExp) {
+  return expect(page.locator('.WebviewControls__urlInput')).toHaveAttribute(
+    'value',
+    value
+  )
+}
 
 electronTest('webview', async (app) => {
   const page = await app.firstWindow()
@@ -13,10 +25,7 @@ electronTest('webview', async (app) => {
     // it's not great to force a sleep, but without these it's too flaky
     await page.waitForTimeout(600)
 
-    await expect(page.locator('.WebviewControls__urlInput')).toHaveAttribute(
-      'value',
-      'https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki'
-    )
+    await expectUrlBar(page, WIKI_URL)
     await page.waitForTimeout(600)
 
     // we have to force a src change since we can't really click something reliably
@@ -27,24 +36,15 @@ electronTest('webview', async (app) => {
     )
     await page.waitForTimeout(600)
 
-    await expect(page.locator('.WebviewControls__urlInput')).toHaveAttribute(
-      'value',
-      'https://www.google.com/'
-    )
+    await expectUrlBar(page, GOOGLE_URL)
 
     // go back to previous page in webview's history
     await page.getByTitle('Go back').click()
-    await expect(page.locator('.WebviewControls__urlInput')).toHaveAttribute(
-      'value',
-      'https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki'
-    )
+    await expectUrlBar(page, WIKI_URL)
 
     // go forward again to google.com
     await page.getByTitle('Go forward').click()
-    await expect(page.locator('.WebviewControls__urlInput')).toHaveAttribute(
-      'value',
-      'https://www.google.com/'
-    )
+    await expectUrlBar(page, GOOGLE_URL)
     await page.waitForTimeout(600)
 
     // simulate mouse back
@@ -53,10 +53,7 @@ electronTest('webview', async (app) => {
       bubbles: true,
       cancelable: true
     })
-    await expect(page.locator('.WebviewControls__urlInput')).toHaveAttribute(
-      'value',
-      'https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki'
-    )
+    await expectUrlBar(page, WIKI_URL)
     await page.waitForTimeout(600)
 
     // simulate mouse forward
@@ -65,10 +62,7 @@ electronTest('webview', async (app) => {
       bubbles: true,
       cancelable: true
     })
-    await expect(page.locator('.WebviewControls__urlInput')).toHaveAttribute(
-      'value',
-      'https://www.google.com/'
-    )
+    await expectUrlBar(page, GOOGLE_URL)
     await page.waitForTimeout(600)
 
     // it looks like we can't simulate mouse buttons INSIDE the webview to also test those
