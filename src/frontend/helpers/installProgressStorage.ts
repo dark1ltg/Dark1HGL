@@ -2,7 +2,7 @@ import { InstallProgress, Runner } from 'common/types'
 
 const storage: Storage = window.localStorage
 
-export function progressStorageKey(appName: string, runner: Runner) {
+function progressStorageKey(appName: string, runner: Runner) {
   return `${appName}_${runner}_progress`
 }
 
