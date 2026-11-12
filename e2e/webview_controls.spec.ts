@@ -4,8 +4,10 @@ import { WebviewTag } from 'electron'
 
 const WIKI_URL =
   'https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki'
-// Google appends cache-buster query params (e.g. ?zx=) in CI.
-const GOOGLE_URL = /^https:\/\/www\.google\.com\/(?:\?.*)?$/
+// example.com is IANA-reserved and does not add cache-buster query params
+// the way Google does in CI (?zx=).
+const EXTERNAL_URL = 'https://example.com/'
+const EXTERNAL_URL_RE = /^https:\/\/example\.com\/?/
 
 function expectUrlBar(page: Page, value: string | RegExp) {
   return expect(page.locator('.WebviewControls__urlInput')).toHaveAttribute(
@@ -32,19 +34,18 @@ electronTest('webview', async (app) => {
     // inside the webview programatically
     await page.$eval(
       'webview',
-      (el: WebviewTag) => (el.src = 'https://www.google.com/')
+      (el: WebviewTag, url: string) => (el.src = url),
+      EXTERNAL_URL
     )
-    await page.waitForTimeout(600)
-
-    await expectUrlBar(page, GOOGLE_URL)
+    await expectUrlBar(page, EXTERNAL_URL_RE)
 
     // go back to previous page in webview's history
     await page.getByTitle('Go back').click()
     await expectUrlBar(page, WIKI_URL)
 
-    // go forward again to google.com
+    // go forward again to the external page
     await page.getByTitle('Go forward').click()
-    await expectUrlBar(page, GOOGLE_URL)
+    await expectUrlBar(page, EXTERNAL_URL_RE)
     await page.waitForTimeout(600)
 
     // simulate mouse back
@@ -62,7 +63,7 @@ electronTest('webview', async (app) => {
       bubbles: true,
       cancelable: true
     })
-    await expectUrlBar(page, GOOGLE_URL)
+    await expectUrlBar(page, EXTERNAL_URL_RE)
     await page.waitForTimeout(600)
 
     // it looks like we can't simulate mouse buttons INSIDE the webview to also test those
