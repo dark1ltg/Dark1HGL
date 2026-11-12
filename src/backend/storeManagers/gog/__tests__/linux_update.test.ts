@@ -1,4 +1,4 @@
-import { linuxInstallerIsCurrent } from '../linux_update'
+import { linuxGameinfoVersion, linuxInstallerIsCurrent } from '../linux_update'
 
 describe('linuxInstallerIsCurrent', () => {
   test('API miss or empty installer list is not an update', () => {
@@ -28,5 +28,15 @@ describe('linuxInstallerIsCurrent', () => {
     expect(
       linuxInstallerIsCurrent([{ os: 'linux', version: '1.2.4' }], '1.2.3')
     ).toBe(false)
+  })
+})
+
+describe('linuxGameinfoVersion', () => {
+  test('reads the version line from a GOG gameinfo file', () => {
+    expect(linuxGameinfoVersion('Game 4\n1.0\n\nen-US\n4\n')).toBe('1.0')
+  })
+
+  test('ignores an empty version line', () => {
+    expect(linuxGameinfoVersion('Game 4\n\n\nen-US\n4\n')).toBeUndefined()
   })
 })

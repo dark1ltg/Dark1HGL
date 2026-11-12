@@ -237,8 +237,16 @@ describe('scanForGogGames', () => {
     expect(found.status).toBe('installed')
   })
 
-  it('does not scan a pathologically deep tree', async () => {
+  it('finds a game nested past the old 32-folder limit', async () => {
     const parts = Array.from({ length: 40 }, (_, index) => `d${index}`)
+    writeInfo(join(root, ...parts), '1', '1')
+    const [found] = await scanForGogGames([root])
+    expect(found?.appName).toBe('1')
+  })
+
+  it('does not scan a pathologically deep tree', async () => {
+    // MAX_SCAN_DEPTH is 128; a tree deeper than that is the safety stop.
+    const parts = Array.from({ length: 136 }, (_, index) => `d${index}`)
     writeInfo(join(root, ...parts), '1', '1')
     expect(await scanForGogGames([root])).toHaveLength(0)
   })

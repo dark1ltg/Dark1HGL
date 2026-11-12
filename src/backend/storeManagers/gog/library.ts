@@ -1051,9 +1051,20 @@ export default class GOGLibraryManager implements LibraryManager {
       newInstallPath = join(newInstallPath, cachedGameData.folder_name)
     }
 
+    if (gameIndex === -1) {
+      logError(
+        "Changing game install path failed: Installed game data couldn't be found",
+        LogPrefix.Gog
+      )
+      return
+    }
+
     installedArray[gameIndex].install_path = newInstallPath
     cachedGameData.install.install_path = newInstallPath
+    library.set(appName, cachedGameData)
     installedGamesStore.set('installed', installedArray)
+    this.refreshInstalled()
+    sendFrontendMessage('pushGameToLibrary', cachedGameData)
   }
 
   async importGame(

@@ -45,7 +45,7 @@ body:
     id: dark1hgl_version
     attributes:
       label: Dark1HGL / AppImage version
-      description: e.g. 2.22.5-gog.5 (Help → About or the release tag you installed)
+      description: e.g. 2.22.5-gog.7 (Help → About or the release tag you installed)
     validations:
       required: true
   - type: dropdown
