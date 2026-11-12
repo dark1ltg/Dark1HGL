@@ -32,7 +32,11 @@ electronTest('webview', async (app) => {
 
     // we have to force a src change since we can't really click something reliably
     // inside the webview programatically
-    await page.$eval('webview', (el: WebviewTag) => (el.src = EXTERNAL_URL))
+    await page.$eval(
+      'webview',
+      (el: WebviewTag, url: string) => (el.src = url),
+      EXTERNAL_URL
+    )
     await expectUrlBar(page, EXTERNAL_URL_RE)
 
     // go back to previous page in webview's history
