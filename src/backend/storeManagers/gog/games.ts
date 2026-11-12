@@ -1,5 +1,5 @@
 import { libraryManagerMap } from '..'
-import { join } from 'path'
+import { basename, join } from 'path'
 import { GameConfig } from '../../game_config'
 import { GlobalConfig } from '../../config'
 import {
@@ -28,8 +28,16 @@ import {
   LaunchOption,
   GOGAchievement
 } from 'common/types'
-import { existsSync, rmSync } from 'graceful-fs'
+import { existsSync, readFileSync, rmSync } from 'graceful-fs'
 import { GogWriteProgress } from './write_progress'
+import { gogdlProcessPattern } from './gogdl_kill'
+import {
+  clearGogInstallIncomplete,
+  gogInstallLooksIncomplete,
+  recordGogWriteStall
+} from './gog_install_state'
+import { resolveGogInstallFolder } from './install_folder'
+import { linuxGameinfoVersion } from './linux_update'
 import {
   achievementStore,
   configStore,
@@ -91,6 +99,17 @@ import { gogdlConfigPath, gogSupportPath } from './constants'
 import { isLinux, isMac, isWindows } from 'backend/constants/environment'
 
 import type LogWriter from 'backend/logger/log_writer'
+
+function readLinuxInstallVersion(installPath?: string): string | undefined {
+  if (!installPath) return
+  try {
+    return linuxGameinfoVersion(
+      readFileSync(join(installPath, 'gameinfo'), 'utf-8')
+    )
+  } catch {
+    return
+  }
+}
 
 export default class GOGGame implements Game {
   private readonly id: string
@@ -289,7 +308,7 @@ export default class GOGGame implements Game {
       LogPrefix.Gog
     )
     callAbortController(this.id)
-    killPattern(isWindows ? 'gogdl' : this.id)
+    killPattern(isWindows ? 'gogdl' : gogdlProcessPattern(this.id))
   }
 
   private startWriteProgressWatch(
@@ -413,6 +432,13 @@ export default class GOGGame implements Game {
         'The install stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again.'
       )
       logError(['Install stalled for', this.id], LogPrefix.Gog)
+      recordGogWriteStall(
+        resolveGogInstallFolder(
+          path,
+          this.getGameInfo().folder_name,
+          this.id
+        ) ?? path
+      )
       showDialogBoxModalAuto({
         title: t('box.error.install-stalled-title', 'Install stalled'),
         message,
@@ -444,8 +470,10 @@ export default class GOGGame implements Game {
       }
     )
     if (installInfo === undefined) {
-      logError('install info is undefined in GOG install', LogPrefix.Gog)
-      return { status: 'error' }
+      logWarning(
+        'install info is undefined in GOG install; recording the downloaded folder anyway',
+        LogPrefix.Gog
+      )
     }
     const gameInfo = this.getGameInfo()
     const isLinuxNative = installPlatform === 'linux'
@@ -453,16 +481,24 @@ export default class GOGGame implements Game {
       ? await libraryManagerMap['gog'].getLinuxInstallerInfo(this.id)
       : null
 
-    if (
-      gameInfo.folder_name === undefined ||
-      gameInfo.folder_name.length === 0
-    ) {
-      logError('game info folder is undefined in GOG install', LogPrefix.Gog)
+    const install_path = resolveGogInstallFolder(
+      path,
+      gameInfo.folder_name,
+      this.id
+    )
+    if (!install_path) {
+      logError(
+        'could not find the GOG install folder after a successful download',
+        LogPrefix.Gog
+      )
       return { status: 'error' }
     }
+    if (!gameInfo.folder_name) {
+      gameInfo.folder_name = basename(install_path)
+    }
 
-    const sizeOnDisk = await getPathDiskSize(join(path, gameInfo.folder_name))
-    const install_path = join(path, gameInfo.folder_name)
+    const sizeOnDisk = await getPathDiskSize(install_path)
+    clearGogInstallIncomplete(install_path)
 
     const installedData: InstalledInfo = {
       platform: installPlatform,
@@ -472,12 +508,14 @@ export default class GOGGame implements Game {
       is_dlc: false,
       version: additionalInfo
         ? additionalInfo.version
-        : installInfo.game.version,
+        : (installInfo?.game.version ?? ''),
       appName: this.id,
       installedDLCs: installDlcs,
       language: installLanguage,
-      versionEtag: isLinuxNative ? '' : installInfo.manifest.versionEtag,
-      buildId: isLinuxNative ? '' : installInfo.game.buildId,
+      versionEtag: isLinuxNative
+        ? ''
+        : (installInfo?.manifest.versionEtag ?? ''),
+      buildId: isLinuxNative ? '' : (installInfo?.game.buildId ?? ''),
       pinnedVersion: !!build
     }
     const array = installedGamesStore.get('installed', [])
@@ -494,7 +532,11 @@ export default class GOGGame implements Game {
       try {
         await setup(this.id, installedData)
       } catch (e) {
-        logWarning(
+        const message = t(
+          'box.error.gog-setup-failed',
+          'The game files are installed, but extra Windows setup (DirectX / Visual C++) failed. The game may not launch until that setup is run.'
+        )
+        logError(
           [
             `Failed to run setup instructions on install for ${gameInfo.title}`,
             'Error:',
@@ -502,6 +544,12 @@ export default class GOGGame implements Game {
           ],
           LogPrefix.Gog
         )
+        showDialogBoxModalAuto({
+          title: t('box.error.gog-setup-failed-title', 'Install setup failed'),
+          message,
+          type: 'ERROR'
+        })
+        return { status: 'error', error: message }
       }
     } else if (isLinuxNative) {
       const gameConfig = GameConfig.get(this.id)
@@ -565,6 +613,18 @@ export default class GOGGame implements Game {
 
     if (!existsSync(gameInfo.install.install_path)) {
       errorHandler('appears to be deleted', this.id, 'gog')
+      return false
+    }
+
+    if (gogInstallLooksIncomplete(gameInfo.install.install_path)) {
+      showDialogBoxModalAuto({
+        title: t('box.error.gog-incomplete-title', 'Update did not finish'),
+        message: t(
+          'box.error.gog-incomplete',
+          'The last GOG update or install for this game did not finish. Repair or update it before playing, or the files may be a mix of old and new.'
+        ),
+        type: 'ERROR'
+      })
       return false
     }
 
@@ -901,6 +961,7 @@ export default class GOGGame implements Game {
         'The repair stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again.'
       )
       logError(['Repair stalled for', this.id], LogPrefix.Gog)
+      recordGogWriteStall(gameData.install.install_path)
       showDialogBoxModalAuto({
         title: t('box.error.repair-stalled-title', 'Repair stalled'),
         message,
@@ -911,6 +972,8 @@ export default class GOGGame implements Game {
 
     if (res.error) {
       logError(['Failed to repair', `${this.id}:`, res.error], LogPrefix.Gog)
+    } else {
+      clearGogInstallIncomplete(gameData.install.install_path)
     }
 
     return res
@@ -1229,6 +1292,7 @@ export default class GOGGame implements Game {
         "The update stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again, or wipe the game's unfinished update files and repair/reinstall."
       )
       logError(['Update stalled for', this.id], LogPrefix.Gog)
+      recordGogWriteStall(gameData.install.install_path)
       showDialogBoxModalAuto({
         title: t('box.error.update-stalled-title', 'Update stalled'),
         message,
@@ -1271,26 +1335,56 @@ export default class GOGGame implements Game {
           build: updateOverwrites?.build
         }
       )
-      // TODO: use installInfo.game.builds
-      const { etag } = await libraryManagerMap['gog'].getMetaResponse(
-        this.id,
-        gameData.install.platform ?? 'windows',
-        installInfo?.manifest.versionEtag
-      )
-      if (installInfo === undefined) return { status: 'error' }
-      gameObject.buildId = installInfo.game.buildId
-      gameObject.version = installInfo.game.version
+      if (installInfo) {
+        gameObject.buildId = installInfo.game.buildId
+        gameObject.version = installInfo.game.version
+      } else {
+        logWarning(
+          [
+            'install info is undefined after a successful GOG update; keeping the existing version and recording disk metadata'
+          ],
+          LogPrefix.Gog
+        )
+        const diskInfo = libraryManagerMap['gog'].readInfoFile(
+          this.id,
+          gameObject.install_path
+        )
+        if (diskInfo?.buildId) gameObject.buildId = diskInfo.buildId
+      }
+      try {
+        const { etag } = await libraryManagerMap['gog'].getMetaResponse(
+          this.id,
+          gameData.install.platform ?? 'windows',
+          installInfo?.manifest.versionEtag ?? gameObject.versionEtag
+        )
+        if (etag) gameObject.versionEtag = etag
+      } catch (error) {
+        logWarning(
+          ['Could not refresh GOG version etag after update', error],
+          LogPrefix.Gog
+        )
+      }
       gameObject.branch = updateOverwrites?.branch
       gameObject.language = overwrittenLanguage
-      gameObject.versionEtag = etag
     } else {
       const installerInfo = await libraryManagerMap[
         'gog'
       ].getLinuxInstallerInfo(this.id)
-      if (!installerInfo) {
-        return { status: 'error' }
+      if (installerInfo?.version) {
+        gameObject.version = installerInfo.version
+      } else {
+        const diskVersion = readLinuxInstallVersion(gameObject.install_path)
+        if (diskVersion) {
+          gameObject.version = diskVersion
+        } else {
+          logWarning(
+            [
+              'Linux installer info missing after a successful GOG update; leaving the stored version'
+            ],
+            LogPrefix.Gog
+          )
+        }
       }
-      gameObject.version = installerInfo.version
     }
     if (updateOverwrites?.dlcs) {
       gameObject.installedDLCs = updateOverwrites?.dlcs
@@ -1324,6 +1418,7 @@ export default class GOGGame implements Game {
       runner: 'gog',
       status: 'done'
     })
+    clearGogInstallIncomplete(gameObject.install_path)
     gameData.install = gameObject
     sendFrontendMessage('pushGameToLibrary', gameData)
     return { status: 'done' }
@@ -1373,13 +1468,16 @@ export default class GOGGame implements Game {
     const newInstalled = installed.filter((g) => g.appName !== this.id)
     installedGamesStore.set('installed', newInstalled)
     libraryManagerMap['gog'].refreshInstalled()
-    sendFrontendMessage('pushGameToLibrary', this.getGameInfo())
+    const gameInfo = this.getGameInfo()
+    gameInfo.is_installed = false
+    gameInfo.install = { is_dlc: false }
+    sendFrontendMessage('pushGameToLibrary', gameInfo)
   }
 
   async stop(stopWine = true): Promise<void> {
     // Fallback when AbortController was overwritten/lost (e.g. concurrent
     // gogdl info for the same game). Queue cancel already signals abort.
-    killPattern(isWindows ? 'gogdl' : this.id)
+    killPattern(isWindows ? 'gogdl' : gogdlProcessPattern(this.id))
 
     if (stopWine && !this.isNative()) {
       const gameSettings = await this.getSettings()

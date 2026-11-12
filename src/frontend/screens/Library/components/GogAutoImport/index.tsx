@@ -148,12 +148,15 @@ export default function GogAutoImport() {
     setScanning(true)
     setImportResult(undefined)
     setImportTotal(0)
-    const found = await window.api.scanForGogGames(
-      folders.filter((folder) => folder.available).map(({ path }) => path)
-    )
-    setResults(found)
-    setSelected((current) => chooseSelection(found, results, current))
-    setScanning(false)
+    try {
+      const found = await window.api.scanForGogGames(
+        folders.filter((folder) => folder.available).map(({ path }) => path)
+      )
+      setResults(found)
+      setSelected((current) => chooseSelection(found, results, current))
+    } finally {
+      setScanning(false)
+    }
   }
 
   const toggleSelected = (game: GOGScanResult) => {
@@ -174,14 +177,17 @@ export default function GogAutoImport() {
     setImporting(true)
     setActivePath(undefined)
     setImportResult(undefined)
-    const toImport = results
-      .filter((game) => selected.has(game.path))
-      .map(({ appName, path, platform }) => ({ appName, path, platform }))
-    setImportTotal(toImport.length)
-    setImportResult(await window.api.importGogGames(toImport))
-    setActivePath(undefined)
-    setSelected(new Set())
-    setImporting(false)
+    try {
+      const toImport = results
+        .filter((game) => selected.has(game.path))
+        .map(({ appName, path, platform }) => ({ appName, path, platform }))
+      setImportTotal(toImport.length)
+      setImportResult(await window.api.importGogGames(toImport))
+      setActivePath(undefined)
+      setSelected(new Set())
+    } finally {
+      setImporting(false)
+    }
   }
 
   const importedCount = importResult?.imported.length ?? 0

@@ -27,7 +27,9 @@ export default function ProgressHeader(props: {
   const progressStale = useProgressIsStale(progress, props.state === 'running')
   const writing = (progress.totalBytes ?? 0) > 0
   const reading =
-    (progress.readSpeed ?? 0) >= 1 && (progress.diskSpeed ?? 0) < 1
+    !progressStale &&
+    (progress.readSpeed ?? 0) >= 1 &&
+    (progress.diskSpeed ?? 0) < 1
   const [avgSpeed, setAvgDownloadSpeed] = useState<Point[]>(
     Array<Point>(sampleSize).fill({ download: 0, disk: 0 })
   )

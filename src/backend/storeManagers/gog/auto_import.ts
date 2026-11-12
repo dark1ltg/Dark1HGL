@@ -22,7 +22,7 @@ import type {
 } from 'common/types/gog'
 
 // Safety stop for a pathological tree. Real game folders are far shallower.
-const MAX_SCAN_DEPTH = 32
+const MAX_SCAN_DEPTH = 128
 
 const SKIPPED_DIRECTORIES = new Set([
   '$recycle.bin',

@@ -7,3 +7,9 @@ export function linuxInstallerIsCurrent(
   if (!linux?.version) return true
   return linux.version === installedVersion
 }
+
+/** GOG Linux `gameinfo`: name, version, …, language, product id. */
+export function linuxGameinfoVersion(contents: string): string | undefined {
+  const version = contents.split('\n')[1]?.trim()
+  return version || undefined
+}

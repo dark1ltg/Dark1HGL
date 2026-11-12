@@ -12,6 +12,20 @@ Project notes: [FORK.md](FORK.md).
 
 ### Unreleased
 
+### 2.22.5-gog.7
+
+**AppImage:** [Heroic-2.22.5-gog.7-linux-x86_64.AppImage](https://github.com/dark1ltg/Dark1HGL/releases/download/v2.22.5-gog.7/Heroic-2.22.5-gog.7-linux-x86_64.AppImage)
+
+- After a stalled GOG write, leftover `.gogdl-resume` is removed and Play is blocked until Repair/Update finishes (no mixed old/new launch)
+- A finished GOG download is still recorded if GOG metadata or folder name is missing
+- “Remove from library” when the folder is gone immediately drops the Play button
+- Move / Change install path refreshes the live installed-games list
+- A successful GOG update is not toasted as failed just because version metadata is missing
+- Windows DirectX/VC++ setup failure is an error, not “Installation Finished”
+- Auto-import Scan/Import buttons unlock if the scan throws
+- Download Manager disk column does not stay on **Read** after a stall
+- Linux cancel matches the gogdl process, not every process whose args contain the GOG id
+- Auto-import scan walks up to 128 folders deep
 - GOG repair shows live write progress, aborts a silent stall, and no longer toasts “Finished repairing” on error or cancel
 - Library cards and the sidebar say **no progress** during a stall even when a byte total is shown; Download Manager no longer keeps a frozen download or “Reading N MB/s” rate
 - In-app “Update Available” compares `2.22.5-gog.N` fork versions (sidebar / GitHub toast)

@@ -88,6 +88,10 @@
                 "message": "generic error message",
                 "title": "Select EXE to Run"
             },
+            "gog-incomplete": "The last GOG update or install for this game did not finish. Repair or update it before playing, or the files may be a mix of old and new.",
+            "gog-incomplete-title": "Update did not finish",
+            "gog-setup-failed": "The game files are installed, but extra Windows setup (DirectX / Visual C++) failed. The game may not launch until that setup is run.",
+            "gog-setup-failed-title": "Install setup failed",
             "install-stalled": "The install stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again.",
             "install-stalled-title": "Install stalled",
             "launchAborted": "Launch aborted",
