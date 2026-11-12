@@ -15,7 +15,7 @@ Not an official Heroic release channel. Upstream Discord / Patreon / Flathub do 
 
 ## Current release
 
-- Version: **2.22.5-gog.7**
+- Version: **2.22.5-gog.6**
 - Releases: https://github.com/dark1ltg/Dark1HGL/releases/latest
 
 ## Features vs upstream Heroic

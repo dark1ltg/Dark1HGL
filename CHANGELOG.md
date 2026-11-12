@@ -12,10 +12,6 @@ Project notes: [FORK.md](FORK.md).
 
 ### Unreleased
 
-### 2.22.5-gog.7
-
-**AppImage:** [Heroic-2.22.5-gog.7-linux-x86_64.AppImage](https://github.com/dark1ltg/Dark1HGL/releases/download/v2.22.5-gog.7/Heroic-2.22.5-gog.7-linux-x86_64.AppImage)
-
 - After a stalled GOG write, leftover `.gogdl-resume` is removed and Play is blocked until Repair/Update finishes (no mixed old/new launch)
 - A finished GOG download is still recorded if GOG metadata or folder name is missing
 - “Remove from library” when the folder is gone immediately drops the Play button
