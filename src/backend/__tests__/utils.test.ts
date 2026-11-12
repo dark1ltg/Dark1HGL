@@ -48,6 +48,10 @@ describe('backend/utils.ts', () => {
       [{ target: 'v2.4.0-beta.1', base: '2.4.0' }, false],
       [{ target: 'v2.4.0-beta.2', base: '2.4.0-beta.1' }, true],
       [{ target: 'v2.4.0-beta.1', base: '2.4.0-beta.2' }, false],
+      [{ target: 'v2.22.5-gog.6', base: '2.22.5-gog.5' }, true],
+      [{ target: 'v2.22.5-gog.5', base: '2.22.5-gog.6' }, false],
+      [{ target: 'v2.22.6-gog.1', base: '2.22.5-gog.9' }, true],
+      [{ target: 'v2.22.5-gog.6', base: '2.22.5-gog.6' }, false],
       [{ target: undefined as any, base: undefined as any }, false]
     ])
 

@@ -19,6 +19,7 @@ import {
   sendKill
 } from 'frontend/helpers'
 import { install, launch, updateGame } from 'frontend/helpers/library'
+import { clearStoredProgress } from 'frontend/helpers/installProgressStorage'
 import { useTranslation } from 'react-i18next'
 import ContextProvider from 'frontend/state/ContextProvider'
 import { CachedImage, SvgButton } from 'frontend/components/UI'
@@ -63,8 +64,6 @@ interface Card {
   forceCard?: boolean
   dataTour?: string
 }
-
-const storage: Storage = window.localStorage
 
 const GameCard = ({
   hasUpdate,
@@ -582,7 +581,7 @@ const GameCard = ({
     }
 
     if (isQueued) {
-      storage.removeItem(appName)
+      clearStoredProgress(appName, runner)
       return window.api.removeFromDMQueue(appName)
     }
 

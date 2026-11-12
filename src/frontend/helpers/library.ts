@@ -11,8 +11,10 @@ import {
 import { TFunction } from 'i18next'
 import { getGameInfo } from './index'
 import { DialogModalOptions } from 'frontend/types'
-
-const storage: Storage = window.localStorage
+import {
+  clearStoredProgress,
+  writeStoredProgress
+} from './installProgressStorage'
 
 type InstallArgs = {
   gameInfo: GameInfo
@@ -82,7 +84,7 @@ async function install({
 
   // If the user changed the previous folder, the percentage should start from zero again.
   if (previousProgress && previousProgress.folder !== installPath) {
-    storage.removeItem(appName)
+    clearStoredProgress(appName, runner)
   }
 
   return window.api.install({
@@ -115,10 +117,7 @@ function handleStopInstallation(
       {
         text: t('box.yes'),
         onClick: () => {
-          storage.setItem(
-            appName,
-            JSON.stringify({ ...progress, folder: path })
-          )
+          writeStoredProgress(appName, runner, { ...progress, folder: path })
           window.api.cancelDownload(false)
         }
       },
@@ -126,7 +125,7 @@ function handleStopInstallation(
         text: t('box.no'),
         onClick: () => {
           window.api.cancelDownload(true)
-          storage.removeItem(appName)
+          clearStoredProgress(appName, runner)
         }
       }
     ]

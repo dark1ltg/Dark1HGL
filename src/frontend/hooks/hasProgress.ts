@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { InstallProgress, Runner } from 'common/types'
+import { readStoredProgress } from 'frontend/helpers/installProgressStorage'
 import {
   LiveInstallProgress,
   useInstallProgress
 } from 'frontend/state/InstallProgress'
-
-const storage: Storage = window.localStorage
 
 // gogdl only moves the percent when a whole file finishes writing. On an
 // external drive that can take minutes, so the same percent is not "stuck"
@@ -16,9 +15,7 @@ type ShownProgress = InstallProgress & { receivedAt?: number }
 
 export const hasProgress = (appName: string, runner: Runner) => {
   const [previousProgress] = useState<InstallProgress>(
-    JSON.parse(
-      storage.getItem(`${appName}_${runner}_progress`) || '{}'
-    ) as InstallProgress
+    readStoredProgress(appName, runner)
   )
 
   const [currentProgress, setProgress] = useState<ShownProgress>(

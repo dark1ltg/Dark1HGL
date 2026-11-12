@@ -11,6 +11,7 @@ import { Runner } from 'common/types'
 import ToggleSwitch from '../ToggleSwitch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import ContextProvider from 'frontend/state/ContextProvider'
+import { clearStoredProgress } from 'frontend/helpers/installProgressStorage'
 
 interface UninstallModalProps {
   appName: string
@@ -86,7 +87,6 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
     checkIfIsNative()
   }, [])
 
-  const storage: Storage = window.localStorage
   const uninstallGame = async () => {
     onClose()
 
@@ -99,7 +99,7 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
     if (runner === 'sideload' && location.pathname.match(/gamepage/)) {
       navigate('/#library')
     }
-    storage.removeItem(appName)
+    clearStoredProgress(appName, runner)
   }
 
   const showWineCheckbox = !isNative && !isDlc

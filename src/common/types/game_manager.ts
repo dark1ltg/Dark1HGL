@@ -32,7 +32,7 @@ export interface Game {
     options?: { lightweight?: boolean }
   ) => Promise<ExecResult>
   onInstallOrUpdateOutput: (
-    action: 'installing' | 'updating',
+    action: 'installing' | 'updating' | 'repairing',
     data: string,
     totalDownloadSize: number
   ) => void

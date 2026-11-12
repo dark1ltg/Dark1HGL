@@ -48,14 +48,18 @@ export default function ProgressHeader(props: {
     const writeRate = progress.diskSpeed ?? 0
     avgSpeed.push({
       download:
-        progress.downSpeed && progress.downSpeed > 0
-          ? progress.downSpeed
-          : (avgSpeed.at(-1)?.download ?? 0),
-      disk: readRate >= 1 && writeRate < 1 ? readRate : writeRate
+        progressStale || !progress.downSpeed || progress.downSpeed <= 0
+          ? 0
+          : progress.downSpeed,
+      disk: progressStale
+        ? 0
+        : readRate >= 1 && writeRate < 1
+          ? readRate
+          : writeRate
     })
 
     setAvgDownloadSpeed([...avgSpeed])
-  }, [progress, props.state])
+  }, [progress, progressStale, props.state])
 
   return (
     <>
@@ -139,28 +143,28 @@ export default function ProgressHeader(props: {
                 variant="subtitle1"
                 sx={{ whiteSpace: 'nowrap' }}
                 title={
-                  reading
+                  progressStale
                     ? t(
-                        'download-manager.readingHint',
-                        'Reading the installed game from disk. The percent moves when that file is written.'
+                        'download-manager.stalledHint',
+                        'No download or disk activity for a while. The update may be stuck.'
                       )
-                    : progressStale
+                    : reading
                       ? t(
-                          'download-manager.stalledHint',
-                          'No download or disk activity for a while. The update may be stuck.'
+                          'download-manager.readingHint',
+                          'Reading the installed game from disk. The percent moves when that file is written.'
                         )
                       : t('download-manager.ETA', 'Estimated Time')
                 }
               >
                 {props.state === 'running'
-                  ? reading
-                    ? t(
-                        'download-manager.readingSpeed',
-                        'Reading {{speed}} MB/s',
-                        { speed: Math.round(progress.readSpeed ?? 0) }
-                      )
-                    : progressStale
-                      ? t('download-manager.stalled', 'No progress')
+                  ? progressStale
+                    ? t('download-manager.stalled', 'No progress')
+                    : reading
+                      ? t(
+                          'download-manager.readingSpeed',
+                          'Reading {{speed}} MB/s',
+                          { speed: Math.round(progress.readSpeed ?? 0) }
+                        )
                       : (progress.eta ?? '00:00:00')
                   : 'Paused'}
               </Typography>

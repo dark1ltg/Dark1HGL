@@ -397,7 +397,7 @@ export default class LegendaryGame implements Game {
   private tmpProgress: InstallProgress | undefined
 
   onInstallOrUpdateOutput(
-    action: 'installing' | 'updating',
+    action: 'installing' | 'updating' | 'repairing',
     data: string,
     totalDownloadSize: number
   ) {

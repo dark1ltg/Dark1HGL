@@ -193,6 +193,9 @@ export default function GogAutoImport() {
     if (activePath === game.path) {
       return t('gog-auto-import.status.importing', 'Importing…')
     }
+    if (importResult?.failed.includes(game.path)) {
+      return t('gog-auto-import.status.failed', 'Import failed')
+    }
     const status = game.status
     switch (status) {
       case 'installed':

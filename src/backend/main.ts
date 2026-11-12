@@ -915,7 +915,19 @@ addHandler('repair', async (event, appName, runner) => {
   const { title } = libraryManagerMap[runner].getGame(appName).getGameInfo()
 
   try {
-    await libraryManagerMap[runner].getGame(appName).repair()
+    const res = await libraryManagerMap[runner].getGame(appName).repair()
+    if (res.error) {
+      notify({
+        title,
+        body: i18next.t('notify.error.reparing', 'Error Repairing')
+      })
+      logError(['Failed to repair', appName, res.error], LogPrefix.Backend)
+    } else if (res.abort) {
+      logWarning(['Repair aborted for', appName], LogPrefix.Backend)
+    } else {
+      notify({ title, body: i18next.t('notify.finished.reparing') })
+      logInfo('Finished repairing', LogPrefix.Backend)
+    }
   } catch (error) {
     notify({
       title,
@@ -923,8 +935,6 @@ addHandler('repair', async (event, appName, runner) => {
     })
     logError(error, LogPrefix.Backend)
   }
-  notify({ title, body: i18next.t('notify.finished.reparing') })
-  logInfo('Finished repairing', LogPrefix.Backend)
 
   sendGameStatusUpdate({
     appName,

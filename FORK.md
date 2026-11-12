@@ -34,10 +34,12 @@ Not an official Heroic release channel. Upstream Discord / Patreon / Flathub do 
 
 - Game updates ahead of redistributables; running games stay visible in the queue
 - Redistributable sync only when needed
-- Live write progress; disk reads when percent stalls; **no progress** when stalled (not “writing to disk”)
-- Silent gogdl 0-IO stalls detected (~90s) and aborted with an error (root hang may still need wipe/repair)
+- Live write progress; disk reads when percent stalls; **no progress** when stalled (library cards, sidebar, Download Manager — not a frozen MB/s or “writing to disk”)
+- GOG repair uses the same live progress / stall abort; failed or canceled repair is not toasted as finished
+- Silent gogdl 0-IO stalls detected (~90s) and aborted with an error
 - Cancel/pause no longer reports a finished update; cancel is more reliable if metadata loads mid-update
 - Report a problem: update.log / install.log (not only launch.log)
+- In-app updater understands `2.22.5-gog.N`; Linux native games do not false-badge updates on API failure
 
 ### gogdl
 

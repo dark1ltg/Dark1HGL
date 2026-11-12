@@ -14,6 +14,7 @@ import { Tab, Tabs } from '@mui/material'
 
 import { getGameInfo, getInstallInfo, sendKill } from 'frontend/helpers'
 import { launch, updateGame, install } from 'frontend/helpers/library'
+import { clearStoredProgress } from 'frontend/helpers/installProgressStorage'
 import { Link, NavLink, useLocation, useParams } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import ContextProvider from 'frontend/state/ContextProvider'
@@ -163,8 +164,6 @@ export default React.memo(function GamePage(): JSX.Element | null {
   const notPlayableOffline = isOffline && !gameInfo.canRunOffline
 
   const backRoute = location.state?.fromDM ? '/download-manager' : '/library'
-
-  const storage: Storage = window.localStorage
 
   const [currentTab, setCurrentTab] = useState<
     'info' | 'achievements' | 'extra' | 'requirements'
@@ -597,7 +596,7 @@ export default React.memo(function GamePage(): JSX.Element | null {
 
   async function handleInstall(is_installed: boolean) {
     if (isQueued) {
-      storage.removeItem(appName)
+      clearStoredProgress(appName, runner)
       return window.api.removeFromDMQueue(appName)
     }
 

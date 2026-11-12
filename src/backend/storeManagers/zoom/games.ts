@@ -179,7 +179,7 @@ export default class ZoomGame implements Game {
   private tmpProgress: InstallProgress | undefined
 
   onInstallOrUpdateOutput(
-    action: 'installing' | 'updating',
+    action: 'installing' | 'updating' | 'repairing',
     data: string,
     total: number
   ) {
