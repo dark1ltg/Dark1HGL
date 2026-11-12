@@ -1,4 +1,4 @@
-import { GogWriteProgress } from '../write_progress'
+import { GOG_WRITE_STALL_MS, GogWriteProgress } from '../write_progress'
 
 const MiB = 1024 * 1024
 
@@ -151,7 +151,7 @@ describe('GogWriteProgress', () => {
         'Disk\t- 0.00 MiB/s (write) / 0.00 MiB/s (read)'
       ].join('\n')
     )
-    expect(progress.isStalled(90_000)).toBe(false)
+    expect(progress.isStalled(GOG_WRITE_STALL_MS)).toBe(false)
 
     at(60_000)
     progress.ingest(
@@ -161,10 +161,10 @@ describe('GogWriteProgress', () => {
         'Disk\t- 0.00 MiB/s (write) / 0.00 MiB/s (read)'
       ].join('\n')
     )
-    expect(progress.isStalled(90_000)).toBe(false)
+    expect(progress.isStalled(GOG_WRITE_STALL_MS)).toBe(false)
 
-    at(90_000)
-    expect(progress.isStalled(90_000)).toBe(true)
+    at(GOG_WRITE_STALL_MS)
+    expect(progress.isStalled(GOG_WRITE_STALL_MS)).toBe(true)
   })
 
   test('does not stall while logged disk throughput is still moving', () => {
@@ -178,15 +178,15 @@ describe('GogWriteProgress', () => {
       'Progress: 10.00 1000/10000, ETA: 00:01:00\nDisk\t- 2.50 MiB/s (write)'
     )
     at(100_000)
-    expect(progress.isStalled(90_000)).toBe(false)
+    expect(progress.isStalled(GOG_WRITE_STALL_MS)).toBe(false)
   })
 
   test('can stall before the first Progress line after begin()', () => {
     const { progress, at } = harness(new Map([[10, 0]]))
-    expect(progress.isStalled(90_000)).toBe(false)
+    expect(progress.isStalled(GOG_WRITE_STALL_MS)).toBe(false)
     progress.begin()
-    expect(progress.isStalled(90_000)).toBe(false)
-    at(90_000)
-    expect(progress.isStalled(90_000)).toBe(true)
+    expect(progress.isStalled(GOG_WRITE_STALL_MS)).toBe(false)
+    at(GOG_WRITE_STALL_MS)
+    expect(progress.isStalled(GOG_WRITE_STALL_MS)).toBe(true)
   })
 })

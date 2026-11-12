@@ -101,6 +101,8 @@
                     "title": "Error Removing Game from Steam"
                 }
             },
+            "repair-stalled": "The repair stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again.",
+            "repair-stalled-title": "Repair stalled",
             "steam": {
                 "running": "Steam is running. Close Steam and try again, or restart Steam once to let Heroic manage shortcuts while Steam is running.",
                 "running-gamemode": "A one-time Steam restart is required before Heroic can manage Steam shortcuts on this device. Restart Steam and try again."
@@ -495,6 +497,7 @@
         "scan": "Scan",
         "select-folder": "Select a folder with games",
         "status": {
+            "failed": "Import failed",
             "importable": "Ready to import",
             "importing": "Importing…",
             "installed": "Already in Heroic",

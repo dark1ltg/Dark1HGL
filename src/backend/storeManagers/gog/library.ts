@@ -54,6 +54,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { unzipSync } from 'node:zlib'
 import { readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { checkForRedistUpdates } from './redist'
+import { linuxInstallerIsCurrent } from './linux_update'
 import { startLibraryFolderWatcher } from './library_folders'
 import { runGogdlCommandStub } from './e2eMock'
 import { gogdlConfigPath } from './constants'
@@ -1195,15 +1196,12 @@ export default class GOGLibraryManager implements LibraryManager {
     version: string
   ): Promise<boolean> {
     const response = await this.getProductApi(appName, ['downloads'])
-    if (!response) return false
+    if (!response) return true
 
-    const installers = response.data?.downloads?.installers ?? []
-    for (const installer of installers) {
-      if (installer.os === 'linux') {
-        return installer.version === version
-      }
-    }
-    return false
+    return linuxInstallerIsCurrent(
+      response.data?.downloads?.installers,
+      version
+    )
   }
 
   async getBuilds(appName: string, platform: string, access_token?: string) {

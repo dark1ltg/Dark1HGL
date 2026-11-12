@@ -157,7 +157,10 @@ export default class NileGameManager implements Game {
   })
   private tmpProgress: InstallProgress | undefined = undefined
 
-  onInstallOrUpdateOutput(action: 'installing' | 'updating', data: string) {
+  onInstallOrUpdateOutput(
+    action: 'installing' | 'updating' | 'repairing',
+    data: string
+  ) {
     if (!this.tmpProgress) {
       this.tmpProgress = this.defaultTmpProgress()
     }

@@ -321,6 +321,8 @@
         "processing": "Processing files, please wait",
         "queued": "Queued",
         "redist": "Installing Redistributables ({{redist}})",
+        "repairingDetail": "Repairing {{percent}}% · {{detail}}",
+        "repairingStalled": "Repairing {{percent}}% - no progress",
         "reparing": "Repairing Game, please wait",
         "syncingSaves": "Syncing Saves",
         "this-game-uses-third-party": "This game uses third party launcher and it is not supported yet",

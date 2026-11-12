@@ -128,6 +128,24 @@ function semverGt(target: string, base: string) {
     target = target.split('-beta.')[0]
   }
 
+  // Dark1HGL fork builds: 2.22.5-gog.N (same idea as -beta.N)
+  if (base.includes('-gog.') && target.includes('-gog.')) {
+    const bSplit = base.split('-gog.')
+    const tSplit = target.split('-gog.')
+    if (bSplit[0] === tSplit[0]) {
+      return Number(tSplit[1]) > Number(bSplit[1])
+    }
+    base = bSplit[0]
+    target = tSplit[0]
+  } else {
+    if (base.includes('-gog.')) {
+      base = base.split('-gog.')[0]
+    }
+    if (target.includes('-gog.')) {
+      target = target.split('-gog.')[0]
+    }
+  }
+
   const [bmajor, bminor, bpatch] = base.split('.').map(Number)
   const [tmajor, tminor, tpatch] = target.split('.').map(Number)
 

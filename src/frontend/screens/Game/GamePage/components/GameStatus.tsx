@@ -19,7 +19,7 @@ const GameStatus = ({ gameInfo, progress, handleUpdate, hasUpdate }: Props) => {
   const { runner, is, statusContext } = useContext(GameContext)
   const progressStale = useProgressIsStale(
     progress,
-    !!(is.updating || is.installing)
+    !!(is.updating || is.installing || is.reparing)
   )
 
   function getInstallLabel(
@@ -58,7 +58,18 @@ const GameStatus = ({ gameInfo, progress, handleUpdate, hasUpdate }: Props) => {
     }
 
     if (is.reparing) {
-      return `${t('status.reparing')} ${percent ? `${percent}%` : '...'}`
+      if (!percent) {
+        return progressStale
+          ? `${t('status.reparing')} — ${t('status.noProgress', 'no progress')}`
+          : `${t('status.reparing')} ...`
+      }
+      return `${t('status.reparing')} ${percent}%${
+        progressStale
+          ? ` — ${t('status.noProgress', 'no progress')}`
+          : bytes
+            ? ` [${bytes}]`
+            : ''
+      }`
     }
 
     if (is.moving) {

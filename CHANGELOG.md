@@ -10,6 +10,15 @@ Project notes: [FORK.md](FORK.md).
 
 ## Fork releases (2.22.5-gog.\*\*\*)
 
+### Unreleased
+
+- GOG repair shows live write progress, aborts a silent stall, and no longer toasts “Finished repairing” on error or cancel
+- Library cards and the sidebar say **no progress** during a stall even when a byte total is shown; Download Manager no longer keeps a frozen download or “Reading N MB/s” rate
+- In-app “Update Available” compares `2.22.5-gog.N` fork versions (sidebar / GitHub toast)
+- Native Linux GOG games no longer get a false “New Version Available” when the product API fails or lists no Linux installer
+- Failed auto-import rows say “Import failed” instead of “Ready to import”
+- Pause/cancel install percent is saved and read under the same key (with a fallback to the old key)
+
 ### 2.22.5-gog.6
 
 **AppImage:** [Heroic-2.22.5-gog.6-linux-x86_64.AppImage](https://github.com/dark1ltg/Dark1HGL/releases/download/v2.22.5-gog.6/Heroic-2.22.5-gog.6-linux-x86_64.AppImage)

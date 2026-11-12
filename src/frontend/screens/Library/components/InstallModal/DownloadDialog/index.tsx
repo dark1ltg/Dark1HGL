@@ -34,6 +34,7 @@ import {
   getPreferredInstallLanguage
 } from 'frontend/helpers'
 import { install } from 'frontend/helpers/library'
+import { readStoredProgress } from 'frontend/helpers/installProgressStorage'
 import ContextProvider from 'frontend/state/ContextProvider'
 import { InstallProgress } from 'frontend/types'
 import React, {
@@ -74,8 +75,6 @@ type DiskSpaceInfo = {
   spaceLeftAfter: string
 }
 
-const storage: Storage = window.localStorage
-
 function getUniqueKey(sdl: SelectiveDownload) {
   if (sdl.tags) {
     return sdl.tags.join(',')
@@ -104,8 +103,9 @@ export default function DownloadDialog({
   gameInfo,
   crossoverBottle
 }: Props) {
-  const previousProgress = JSON.parse(
-    storage.getItem(appName) || '{}'
+  const previousProgress = readStoredProgress(
+    appName,
+    runner
   ) as InstallProgress
   const { libraryStatus, platform, showDialogModal } =
     useContext(ContextProvider)

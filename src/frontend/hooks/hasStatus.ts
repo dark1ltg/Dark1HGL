@@ -14,7 +14,9 @@ export function hasStatus(gameInfo: GameInfo, gameSize?: string) {
   )
   const writingToDisk = useProgressIsStale(
     progress,
-    liveStatus?.status === 'installing' || liveStatus?.status === 'updating'
+    liveStatus?.status === 'installing' ||
+      liveStatus?.status === 'updating' ||
+      liveStatus?.status === 'repairing'
   )
   const [newGameInfo, setNewGameInfo] = React.useState<GameInfo | undefined>(
     gameInfo

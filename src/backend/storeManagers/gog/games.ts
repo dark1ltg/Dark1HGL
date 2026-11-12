@@ -263,7 +263,7 @@ export default class GOGGame implements Game {
   private updateStalled = false
 
   onInstallOrUpdateOutput(
-    action: 'installing' | 'updating',
+    action: 'installing' | 'updating' | 'repairing',
     data: string,
     /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
     totalDownloadSize = -1,
@@ -279,7 +279,7 @@ export default class GOGGame implements Game {
     this.abortIfWriteStalled(action)
   }
 
-  private abortIfWriteStalled(action: 'installing' | 'updating') {
+  private abortIfWriteStalled(action: 'installing' | 'updating' | 'repairing') {
     if (this.updateStalled || !this.writeProgress.isStalled()) return
     this.updateStalled = true
     logError(
@@ -292,7 +292,9 @@ export default class GOGGame implements Game {
     killPattern(isWindows ? 'gogdl' : this.id)
   }
 
-  private startWriteProgressWatch(action: 'installing' | 'updating') {
+  private startWriteProgressWatch(
+    action: 'installing' | 'updating' | 'repairing'
+  ) {
     this.writeProgress.begin()
     this.writeProgress.watch(
       (live) => this.publishInstallProgress(action, live, false),
@@ -301,7 +303,7 @@ export default class GOGGame implements Game {
   }
 
   private publishInstallProgress(
-    action: 'installing' | 'updating',
+    action: 'installing' | 'updating' | 'repairing',
     progress: InstallProgress,
     log: boolean
   ) {
@@ -873,12 +875,39 @@ export default class GOGGame implements Game {
       commandParts.push('--password', privateBranchPassword)
     }
 
+    const onOutput = (data: string, child?: { pid?: number }) => {
+      this.onInstallOrUpdateOutput('repairing', data, -1, child)
+    }
+
     const repairLogWriter = await createGameLogWriter(this.id, 'gog', 'repair')
-    const res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
-      abortId: this.id,
-      logWriters: [repairLogWriter],
-      logMessagePrefix: `Repairing ${this.id}`
-    })
+    this.writeProgress.stop()
+    this.updateStalled = false
+    this.startWriteProgressWatch('repairing')
+    let res: ExecResult
+    try {
+      res = await libraryManagerMap['gog'].runRunnerCommand(commandParts, {
+        abortId: this.id,
+        logWriters: [repairLogWriter],
+        onOutput,
+        logMessagePrefix: `Repairing ${this.id}`
+      })
+    } finally {
+      this.writeProgress.stop()
+    }
+
+    if (this.updateStalled) {
+      const message = t(
+        'box.error.repair-stalled',
+        'The repair stopped making progress (no download or disk activity). It was cancelled so it would not hang forever. Try again.'
+      )
+      logError(['Repair stalled for', this.id], LogPrefix.Gog)
+      showDialogBoxModalAuto({
+        title: t('box.error.repair-stalled-title', 'Repair stalled'),
+        message,
+        type: 'ERROR'
+      })
+      return { stdout: '', stderr: message, error: message }
+    }
 
     if (res.error) {
       logError(['Failed to repair', `${this.id}:`, res.error], LogPrefix.Gog)
